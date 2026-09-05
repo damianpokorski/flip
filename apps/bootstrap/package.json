@@ -1,0 +1,17 @@
+{
+	"name": "@flip/bootstrap",
+	"type": "module",
+	"main": "src/index.ts",
+	"scripts": {
+		"start": "bun run src/index.ts"
+	},
+	"dependencies": {
+		"@flip/env": "workspace:*",
+		"@flip/store": "workspace:*"
+	},
+	"devDependencies": {
+		"@flip/config": "workspace:*",
+		"@types/bun": "catalog:",
+		"typescript": "catalog:"
+	}
+}

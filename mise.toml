@@ -1,0 +1,26 @@
+[tools]
+bun = "1.3.14"
+
+
+
+[tasks.dev]
+description = 'Runs backend and frontend side by side using tmux'
+
+env = { SESH = 'flip' }
+run = '''
+#!/usr/bin/env bash
+
+if tmux has-session -t "$SESH" 2>/dev/null; then
+  tmux attach-session -t "$SESH"
+  exit 0
+fi
+
+tmux new-session -d -s "$SESH"
+
+tmux send-keys -t "$SESH" "bun run dev:server" Enter
+
+tmux split-window -h -t "$SESH"
+tmux send-keys -t "$SESH" "bun run dev:web" Enter
+
+tmux attach-session -t "$SESH"
+'''

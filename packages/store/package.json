@@ -1,0 +1,22 @@
+{
+	"name": "@flip/store",
+	"type": "module",
+	"exports": {
+		".": {
+			"default": "./src/index.ts"
+		},
+		"./*": {
+			"default": "./src/*.ts"
+		}
+	},
+	"dependencies": {
+		"@flip/env": "workspace:*",
+		"yaml": "2.9.0",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@flip/config": "workspace:*",
+		"@types/bun": "catalog:",
+		"typescript": "catalog:"
+	}
+}
