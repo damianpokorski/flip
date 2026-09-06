@@ -9,7 +9,7 @@ export class ConfigRepository {
 		return configStore.get();
 	}
 
-	update(patch: Partial<Config>): Promise<Config> {
-		return configStore.update(patch);
+	readRaw(): Promise<{ content: string; updatedAt: string }> {
+		return configStore.readRaw();
 	}
 }

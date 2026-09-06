@@ -1,0 +1,17 @@
+/* Radii climb with the size of the thing. Nothing in the shell is a perfect
+   circle except a status dot. */
+
+:root {
+	--r-keycap: 4px; /* the ` keycap, inline code chips */
+	--r-xs: 5px; /* small service tiles, board chips */
+	--r-sm: 6px;
+	--r-row: 7px; /* list rows, buttons, spine tiles' inner tiles */
+	--r-md: 9px; /* spine tiles, panels, board columns */
+	--r-lg: 12px; /* HUD service tile */
+	--r-xl: 13px; /* reserved for a future mobile pass */
+	--r-2xl: 14px; /* reserved for a future mobile pass */
+	--r-sheet: 24px; /* reserved for a future mobile pass */
+	--r-screen: 31px; /* reserved for a future mobile pass */
+	--r-device: 38px; /* reserved for a future mobile pass */
+	--r-dot: 50%;
+}

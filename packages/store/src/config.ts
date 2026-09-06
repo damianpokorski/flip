@@ -14,6 +14,7 @@ export const configStore = {
 		configFile.onChange(listener),
 	watch: () => configFile.watch(),
 	get: () => configFile.read(),
+	readRaw: () => configFile.readRaw(),
 
 	async update(patch: Partial<Config>): Promise<Config> {
 		return configFile.mutate((doc) => {

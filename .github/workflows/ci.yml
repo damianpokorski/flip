@@ -81,11 +81,11 @@ jobs:
 
       - name: Docker smoke test
         run: |
-          docker run -d --name flip-ci -p 3000:3000 -v flip-ci-data:/data flip:ci
+          docker run -d --name flip-ci -p 8080:8080 -v flip-ci-data:/data flip:ci
 
           ready=false
           for _ in $(seq 1 15); do
-            if curl -sf http://localhost:3000/api/health >/dev/null; then
+            if curl -sf http://localhost:8080/api/health >/dev/null; then
               ready=true
               break
             fi

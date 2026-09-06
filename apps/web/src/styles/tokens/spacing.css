@@ -1,0 +1,34 @@
+/* Spacing is deliberately NOT a 4px grid. The shell is dense — a 46px spine, a
+   184px sidebar, 26px rows — and the values below are the ones the design
+   actually uses. Odd numbers are intentional: 5px and 7px paddings keep a 16px
+   icon and an 11.5px label optically centred in a 26px row, which a 4/8 grid
+   cannot do at this size. Copy these; do not round them. */
+
+:root {
+	--sp-1: 1px; /* row gap in a list — rows separate by fill, not space */
+	--sp-2: 3px;
+	--sp-3: 5px;
+	--sp-4: 6px;
+	--sp-5: 7px;
+	--sp-6: 8px;
+	--sp-7: 9px;
+	--sp-8: 10px;
+	--sp-9: 12px;
+	--sp-10: 14px;
+	--sp-11: 16px;
+	--sp-12: 18px;
+	--sp-13: 22px;
+
+	/* Fixed structure. These are layout constants, not preferences. */
+	--w-spine: 46px;
+	--w-sidebar: 184px;
+	--size-spine-tile: 32px;
+	--size-tile-lg: 26px; /* add-service preview */
+	--size-tile-md: 18px; /* settings list row */
+	--size-tile-sm: 16px; /* sidebar row */
+	--size-tile-xs: 13px; /* workspace board chip */
+	--h-row: 26px; /* sidebar / settings list row */
+	--h-touch: 44px; /* mobile minimum hit target (reserved for a future mobile pass) */
+	--h-touch-row: 60px;
+	--w-board-col: 104px;
+}

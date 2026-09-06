@@ -1,5 +1,9 @@
 [tools]
 bun = "1.3.14"
+# Embedded reverse proxy (apps/server/src/services/CaddyProxyService.ts) — always spawned by
+# the server in both dev and prod, so it's a required local prerequisite like bun. Keep this
+# in sync with the `caddy:2` image vendored in the Dockerfile's runtime stage.
+caddy = "2.11.4"
 
 
 

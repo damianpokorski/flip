@@ -6,10 +6,10 @@ export const dataEvents = new EventEmitter();
 // being a real leak.
 dataEvents.setMaxListeners(50);
 
-// Panel/config CRUD (including changes detected from a hand-edited YAML file).
+// Service/workspace/config CRUD (including changes detected from a hand-edited YAML file).
 export const notifyDataChanged = () => dataEvents.emit("change");
 
-// Per-panel up/down/latency status changed. Payload: a partial map of panelId -> status,
-// so the client can patch its state instead of refetching the whole panel list.
+// Per-service up/down/latency status changed. Payload: a partial map of serviceId -> status,
+// so the client can patch its state instead of refetching the whole service list.
 export const notifyHealthChanged = (payload: unknown) =>
 	dataEvents.emit("health", payload);

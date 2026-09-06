@@ -1,0 +1,23 @@
+/* There is no shadow system in the usual sense. Depth is carried by the three
+   surface colours and by hairline borders. Shadows appear in exactly these
+   places — if a fifth use is needed, that's a sign the layout should be doing
+   the work instead. */
+
+:root {
+	/* A focused input is a 1.5px accent underline plus a short glow beneath it.
+	   This is the only "focus ring" in the product. */
+	--glow-input: 0 8px 20px -12px rgba(137, 180, 250, 0.55);
+	--glow-input-tight: 0 8px 20px -14px rgba(137, 180, 250, 0.6);
+
+	/* Reserved for a future mobile pass (the switcher sheet). */
+	--shadow-sheet: 0 -24px 60px -20px #000;
+	--shadow-device: 0 40px 80px -40px #000;
+
+	/* Selected swatch in the colour picker: a crust-coloured gap, then accent. */
+	--ring-swatch: 0 0 0 2px var(--bg-spine), 0 0 0 3.5px var(--accent);
+
+	/* Hairline weights. 1.5px is reserved for "this one is active". */
+	--stroke-hair: 1px;
+	--stroke-active: 1.5px;
+	--stroke-tab: 2px;
+}

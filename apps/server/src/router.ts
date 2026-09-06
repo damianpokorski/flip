@@ -3,7 +3,8 @@ import { Elysia } from "elysia";
 import { z } from "zod";
 import { configController } from "./controllers/config";
 import { eventsController } from "./controllers/events";
-import { panelsController } from "./controllers/panels";
+import { servicesController } from "./controllers/services";
+import { workspacesController } from "./controllers/workspaces";
 import { errorPlugin } from "./errors";
 
 export const router = new Elysia({ prefix: "/api" })
@@ -19,5 +20,6 @@ export const router = new Elysia({ prefix: "/api" })
 	.get("/", () => "OK")
 	.get("/health", () => ({ status: "ok" }))
 	.use(configController)
-	.use(panelsController)
+	.use(servicesController)
+	.use(workspacesController)
 	.use(eventsController);

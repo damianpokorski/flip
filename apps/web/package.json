@@ -17,6 +17,7 @@
 	"dependencies": {
 		"@elysia/eden": "^1.4.10",
 		"@flip/env": "workspace:*",
+		"@flip/store": "workspace:*",
 		"dotenv": "catalog:",
 		"server": "workspace:*",
 		"svelte-dnd-action": "^0.9.79",
@@ -28,10 +29,8 @@
 		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.70.1",
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",
-		"@tailwindcss/vite": "^4.3.3",
 		"svelte": "^5.56.8",
 		"svelte-check": "^4.7.4",
-		"tailwindcss": "^4.3.3",
 		"typescript": "catalog:",
 		"vite": "^8.1.5"
 	}

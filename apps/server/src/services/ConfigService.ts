@@ -1,16 +1,19 @@
-import type { Config, ConfigRepository } from "../db/ConfigRepository";
-import { notifyDataChanged } from "../events";
+import { env } from "@flip/env/server";
+import type { ConfigRepository } from "../db/ConfigRepository";
 
 export class ConfigService {
 	constructor(private readonly repo: ConfigRepository) {}
 
-	get(): Promise<Config> {
-		return this.repo.get();
+	async get() {
+		const config = await this.repo.get();
+		return {
+			...config,
+			proxyDomain: env.PROXY_DOMAIN ?? null,
+			proxyPort: env.PROXY_PORT,
+		};
 	}
 
-	async update(data: Partial<Config>): Promise<Config> {
-		const config = await this.repo.update(data);
-		notifyDataChanged();
-		return config;
+	readRaw(): Promise<{ content: string; updatedAt: string }> {
+		return this.repo.readRaw();
 	}
 }

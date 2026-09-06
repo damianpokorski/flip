@@ -1,6 +1,7 @@
 {
 	"name": "flip",
 	"private": true,
+	"license": "MIT",
 	"workspaces": {
 		"packages": [
 			"apps/*",
@@ -15,7 +16,7 @@
 	},
 	"type": "module",
 	"scripts": {
-		"dev": "vp run -r --parallel dev",
+		"dev": "vp run -r --parallel --log labeled dev",
 		"dev:server": "vp run --filter server dev",
 		"dev:web": "vp run --filter web dev",
 		"build": "vp run -r build",
@@ -31,9 +32,10 @@
 		"hooks:setup": "vp config",
 		"bootstrap": "vp run --filter @flip/bootstrap start",
 		"dev:bootstrap": "bun run bootstrap",
+		"dev:kill": "for p in 3000 5173 8080 2019; do (lsof -ti:$p | xargs kill -9) 2>/dev/null; done; echo 'Stopped any FLIP dev processes on :3000 (server) :5173 (web) :8080 (caddy) :2019 (caddy admin)'",
 		"data:reset": "rm -rf data && bun run bootstrap",
 		"docker:stop": "(docker stop flip 2&> /dev/null || echo 'No containers needing stopping') && (docker rm -f flip 2&> /dev/null || echo 'No old containers to remove') ",
-		"docker": "docker buildx build -t flip . && bun run docker:stop && docker run -it --name flip -p 3000:3000 -v flip-data:/data flip"
+		"docker": "docker buildx build -t flip . && bun run docker:stop && docker run -it --name flip -p 8080:8080 -v flip-data:/data flip"
 	},
 	"dependencies": {
 		"@flip/env": "workspace:*",

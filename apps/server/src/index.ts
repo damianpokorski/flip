@@ -1,9 +1,14 @@
 import { cors } from "@elysiajs/cors";
 import staticPlugin from "@elysiajs/static";
 import { env } from "@flip/env/server";
-import { configStore, initDataFiles, panelsStore } from "@flip/store";
+import {
+	configStore,
+	initDataFiles,
+	servicesStore,
+	workspacesStore,
+} from "@flip/store";
 import Elysia from "elysia";
-import { healthCheckService } from "./controllers/panels";
+import { caddyProxyService, healthCheckService } from "./controllers/services";
 import { notifyDataChanged } from "./events";
 import { router } from "./router";
 
@@ -12,15 +17,30 @@ import { router } from "./router";
 // running `bun run dev:server` directly against a fresh checkout.
 await initDataFiles();
 
-// Watch panels.yaml/config.yaml for hand-edits and push them out over SSE — @flip/store
-// only reloads its in-memory cache once something is actually watching, so this has to
-// run once per process, not per-request.
-panelsStore.watch();
+// Watch services.yaml/workspaces.yaml/config.yaml for hand-edits and push them out over SSE
+// — @flip/store only reloads its in-memory cache once something is actually watching, so
+// this has to run once per process, not per-request.
+servicesStore.watch();
+workspacesStore.watch();
 configStore.watch();
-panelsStore.onChange(notifyDataChanged);
+servicesStore.onChange((services) => {
+	notifyDataChanged();
+	caddyProxyService.reload(services);
+});
+workspacesStore.onChange(notifyDataChanged);
 configStore.onChange(notifyDataChanged);
 
 healthCheckService.start();
+await caddyProxyService.start();
+
+const shutdown = async (signal: NodeJS.Signals) => {
+	console.log(`[server] ${signal} received, shutting down`);
+	healthCheckService.stop();
+	await caddyProxyService.stop();
+	process.exit(0);
+};
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
 
 let fullstack = new Elysia({});
 
@@ -45,6 +65,11 @@ if (publicDir) {
 		) as unknown as typeof fullstack;
 }
 
-fullstack.listen(env.PORT, () =>
-	console.log(`Server running on port ${env.PORT}`),
+// Loopback-only: PORT is never meant to be reached except by the embedded Caddy proxy on the
+// same host, which is now the sole entrypoint (see CaddyProxyService). Binding 0.0.0.0 here
+// would let a stray container port-publish or LAN request bypass Caddy entirely.
+fullstack.listen({ port: env.PORT, hostname: "127.0.0.1" }, () =>
+	console.log(
+		`Server running on port ${env.PORT} (internal-only, fronted by Caddy)`,
+	),
 );

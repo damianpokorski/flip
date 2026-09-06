@@ -1,13 +1,17 @@
-import { configStore } from "@flip/store";
-import type { PanelsRepository } from "../db/PanelsRepository";
+import {
+	bucketFor,
+	configStore,
+	type HealthBucket,
+	parseCodes,
+	parseEvery,
+} from "@flip/store";
+import type { ServicesRepository } from "../db/ServicesRepository";
 import { notifyHealthChanged } from "../events";
 
-export type HealthState = "up" | "down" | "unknown";
-
 export interface HealthStatus {
-	status: HealthState;
-	latencyMs: number | null;
+	ms: number | null;
 	lastCheckedAt: string | null;
+	bucket: HealthBucket;
 }
 
 interface HealthRecord extends HealthStatus {
@@ -15,23 +19,23 @@ interface HealthRecord extends HealthStatus {
 }
 
 const UNKNOWN_HEALTH: HealthStatus = {
-	status: "unknown",
-	latencyMs: null,
+	ms: null,
 	lastCheckedAt: null,
+	bucket: "down",
 };
 
-// Runs a single scheduler tick (rather than one setInterval per panel) that checks each
-// panel's target URL once its own interval has elapsed. Status is kept in memory only —
-// deliberately never persisted to YAML, so config files stay stable/human-diffable and
-// don't race with the file watcher. Status resets to "unknown" on every restart, which is
-// an accepted tradeoff for a personal-scale tool.
+// Runs a single scheduler tick (rather than one setInterval per service) that checks each
+// service's target URL once its own `every` interval has elapsed. Status is kept in memory
+// only — deliberately never persisted to YAML, so config files stay stable/human-diffable
+// and don't race with the file watcher. Status resets to "unknown"-shaped (down/null) on
+// every restart, which is an accepted tradeoff for a personal-scale tool.
 const TICK_MS = 5_000;
 
 export class HealthCheckService {
 	private readonly statuses = new Map<string, HealthRecord>();
 	private timer: ReturnType<typeof setInterval> | undefined;
 
-	constructor(private readonly repo: PanelsRepository) {}
+	constructor(private readonly repo: ServicesRepository) {}
 
 	getStatus(id: string): HealthStatus {
 		const record = this.statuses.get(id);
@@ -60,7 +64,7 @@ export class HealthCheckService {
 	}
 
 	private async tick(): Promise<void> {
-		const [panels, config] = await Promise.all([
+		const [services, config] = await Promise.all([
 			this.repo.findAll(),
 			configStore.get(),
 		]);
@@ -68,39 +72,38 @@ export class HealthCheckService {
 		const changed: Record<string, HealthStatus> = {};
 
 		await Promise.all(
-			panels.map(async (panel) => {
-				const intervalMs =
-					panel.healthCheckIntervalMs ?? config.healthCheckIntervalMs;
-				const existing = this.statuses.get(panel.id);
+			services.map(async (service) => {
+				const intervalMs = parseEvery(service.every);
+				const existing = this.statuses.get(service.id);
 				if (existing && now - existing.lastCheckedAtMs < intervalMs) return;
 
-				const target = panel.healthCheckUrl ?? panel.url;
+				const target = service.healthCheckUrl ?? service.url;
+				const okCodes = parseCodes(service.codes);
 				const startedAt = performance.now();
-				let status: HealthState;
-				let latencyMs: number | null;
+				let ms: number | null;
 				try {
-					await fetch(target, {
+					const response = await fetch(target, {
 						signal: AbortSignal.timeout(config.healthCheckTimeoutMs),
 					});
-					// Many self-hosted dashboards redirect or return non-2xx on their root page —
-					// any response at all (not a timeout/network error) counts as "up".
-					status = "up";
-					latencyMs = Math.round(performance.now() - startedAt);
+					// A response outside the configured OK codes counts as down, same as a
+					// timeout/network error — the codes list is the whole up/down contract.
+					ms = okCodes.includes(response.status)
+						? Math.round(performance.now() - startedAt)
+						: null;
 				} catch {
-					status = "down";
-					latencyMs = null;
+					ms = null;
 				}
 				const record: HealthRecord = {
-					status,
-					latencyMs,
+					ms,
 					lastCheckedAt: new Date().toISOString(),
+					bucket: bucketFor(ms),
 					lastCheckedAtMs: now,
 				};
-				this.statuses.set(panel.id, record);
-				changed[panel.id] = {
-					status,
-					latencyMs,
+				this.statuses.set(service.id, record);
+				changed[service.id] = {
+					ms,
 					lastCheckedAt: record.lastCheckedAt,
+					bucket: record.bucket,
 				};
 			}),
 		);

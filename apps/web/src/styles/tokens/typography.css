@@ -1,0 +1,52 @@
+/* Two families, split by job.
+
+   Oswald    — every label a human reads as a name: workspace names, service
+               names, section heads, buttons. Condensed, so long service names
+               fit a 184px sidebar without truncating.
+   Fira Code — every number and every machine string: latency, intervals, HTTP
+               codes, hostnames, YAML, keycaps. Tabular by nature, so a column
+               of latencies lines up without extra work.
+
+   Loaded via a <link> in app.html (see apps/web/src/app.html), not @import
+   here — a document-level <link> can be discovered and fetched in parallel
+   with CSS parsing. */
+
+:root {
+	--font-display: "Oswald", "Barlow Condensed", sans-serif;
+	--font-mono: "Fira Code", ui-monospace, monospace;
+
+	/* Display scale — the sizes actually used in the shell. */
+	--t-display-md: 19px; /* mobile screen title (reserved for a future mobile pass) */
+	--t-display-sm: 15px; /* settings header */
+	--t-display-xs: 13px; /* sidebar workspace head */
+	--t-label: 11.5px; /* rows, tabs, buttons */
+	--t-label-sm: 11px; /* spine tile, board column head */
+	--t-label-xs: 10.5px; /* workspace chips */
+
+	/* Mono scale. Nothing below 8px exists; 8.5px is the floor and is only ever
+	   used for column heads and gutter numbers. */
+	--t-mono-lg: 15px; /* the URL being typed */
+	--t-mono-md: 12px; /* search placeholder */
+	--t-mono-sm: 11px; /* field values */
+	--t-mono-xs: 9.5px; /* latency, codes, intervals */
+	--t-mono-2xs: 9px; /* meta lines, hints */
+	--t-mono-3xs: 8.5px; /* column heads, line numbers */
+
+	/* Weights. Oswald never goes above 600; Fira Code never above 600 either,
+	   and 700 appears only on the two-letter service tiles. */
+	--w-regular: 400;
+	--w-medium: 500;
+	--w-semibold: 600;
+	--w-bold: 700;
+
+	/* Tracking. The wide steps are what makes a label read as structural. */
+	--track-tight: 0.02em; /* service names in a list */
+	--track-normal: 0.04em;
+	--track-wide: 0.06em; /* buttons, spine tiles */
+	--track-wider: 0.08em; /* tabs */
+	--track-widest: 0.1em; /* column heads, field labels */
+	--track-head: 0.14em; /* screen titles */
+	--track-group: 0.2em; /* group labels */
+
+	--lh-code: 14px; /* one YAML line, gutter and text share it */
+}

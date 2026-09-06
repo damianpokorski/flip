@@ -1,42 +1,38 @@
-@import "tailwindcss";
+@import "./styles/tokens/colors.css";
+@import "./styles/tokens/typography.css";
+@import "./styles/tokens/spacing.css";
+@import "./styles/tokens/radius.css";
+@import "./styles/tokens/elevation.css";
+@import "./styles/tokens/motion.css";
 
-:root {
-	--ctp-base: #1e1e2e;
-	--ctp-crust: #11111b;
-	--ctp-mantle: #181825;
-	--ctp-surface0: #313244;
-	--ctp-surface1: #45475a;
-	--ctp-overlay0: #6c7086;
-	--ctp-overlay1: #7f849c;
-	--ctp-overlay2: #9399b2;
-	--ctp-text: #cdd6f4;
-	--ctp-green: #a6e3a1;
-	--ctp-mauve: #cba6f7;
-	--ctp-mauve-dim: color-mix(in srgb, var(--ctp-mauve) 85%, black);
-	--ctp-peach: #fab387;
-	--ctp-red: #f38ba8;
-	--ctp-red-dim: color-mix(in srgb, var(--ctp-red) 85%, black);
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	height: 100%;
+	margin: 0;
 }
 
 body {
-	background: var(--ctp-base);
-	color: var(--ctp-text);
+	background: var(--bg-app);
+	color: var(--text-1);
+	font-family: var(--font-display);
+	scrollbar-color: var(--border-strong) var(--bg-spine);
 }
 
-* {
-	scrollbar-color: var(--ctp-surface1) var(--ctp-crust);
-}
 ::-webkit-scrollbar {
 	width: 8px;
 	height: 8px;
 }
 ::-webkit-scrollbar-track {
-	background: var(--ctp-crust);
+	background: var(--bg-spine);
 }
 ::-webkit-scrollbar-thumb {
-	background: var(--ctp-surface1);
-	border-radius: 4px;
+	background: var(--border-strong);
+	border-radius: var(--r-sm);
 }
 ::-webkit-scrollbar-thumb:hover {
-	background: var(--ctp-overlay0);
+	background: var(--text-5);
 }

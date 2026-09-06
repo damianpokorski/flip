@@ -24,7 +24,11 @@ export default defineConfig({
 	retries: 0,
 	reporter: "list",
 	use: {
-		baseURL: "http://localhost:5173",
+		// The server webServer entry below spawns the embedded Caddy proxy itself (it's part of
+		// apps/server's own startup, not a separate process here) — routing through it, rather
+		// than straight to Vite, exercises the same dev-mode path split (/api/* vs everything
+		// else) that a real `bun run dev` gets, instead of testing the pre-consolidation topology.
+		baseURL: "http://localhost:8080",
 		trace: "retain-on-failure",
 	},
 	projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
@@ -32,7 +36,10 @@ export default defineConfig({
 		{
 			command: serverCommand,
 			cwd: serverDir,
-			url: "http://localhost:3000/api/health",
+			// Through Caddy, not straight to Bun — only succeeds once the embedded proxy has
+			// also loaded its config and is actually routing, matching the Dockerfile's
+			// HEALTHCHECK reasoning (health should reflect the real entrypoint).
+			url: "http://localhost:8080/api/health",
 			reuseExistingServer: false,
 			env: {
 				DATA_DIR: E2E_DATA_DIR,
@@ -43,6 +50,8 @@ export default defineConfig({
 		{
 			command: "bun run dev",
 			cwd: webDir,
+			// Vite's own direct readiness — unrelated to Caddy, but Caddy's dev-mode catch-all
+			// proxies to this port, so it still needs to be up.
 			url: "http://localhost:5173",
 			reuseExistingServer: false,
 			stdout: "pipe",

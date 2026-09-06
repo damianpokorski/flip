@@ -1,0 +1,41 @@
+/* FLIP's one performance promise is that switching a service never reloads a
+   frame, so motion must never make a switch feel slower than it is. Nothing
+   bounces, nothing springs, nothing slides in from off-screen. State changes
+   are a fill and a border swapping colour.
+
+   Hover:  fill goes from transparent to --accent-row-quiet. No lift, no scale.
+   Press:  fill goes to --accent-fill. Still no movement.
+   Active: fill --accent-row plus a 3px accent marker to the left of the item.
+   Focus:  --stroke-active accent underline plus --glow-input.
+
+   The HUD is the one animated surface: it fades and scales from 0.98 to 1 over
+   --dur-hud when it opens, and leaves instantly on close — asymmetric on
+   purpose, so raising it feels deliberate while dismissing it (backtick again,
+   Escape, or picking a result) is instant.
+
+   The sidebar's collapse/reveal is the other animated surface: opening a
+   service pushes it out over --dur-sheet, width and border collapsing
+   together so no sliver survives box-sizing: border-box; clicking a
+   workspace pill brings it back over the same duration. */
+
+:root {
+	--dur-instant: 90ms; /* fill swaps, hover */
+	--dur-fast: 140ms; /* tab underline, chip selection */
+	--dur-hud: 180ms; /* HUD raise */
+	--dur-sheet: 220ms; /* sidebar collapse/reveal */
+
+	--ease-out: cubic-bezier(0.2, 0.8, 0.25, 1);
+	--ease-in: cubic-bezier(0.4, 0, 1, 1);
+
+	--hud-scale-from: 0.98;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--dur-instant: 0ms;
+		--dur-fast: 0ms;
+		--dur-hud: 0ms;
+		--dur-sheet: 0ms;
+		--hud-scale-from: 1;
+	}
+}

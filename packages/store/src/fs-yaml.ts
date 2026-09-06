@@ -1,5 +1,5 @@
 import { watch } from "node:fs";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { env } from "@flip/env/server";
 import { type Document, parseDocument } from "yaml";
@@ -60,6 +60,16 @@ export class YamlFile<T> {
 		const { data } = await this.readFresh();
 		this.cache = data;
 		return data;
+	}
+
+	// Raw file text + last-modified time, for a genuine live view of the on-disk YAML (the
+	// Settings → Config tab) — `.read()`/`.toJS()` strips the comments this needs to show.
+	async readRaw(): Promise<{ content: string; updatedAt: string }> {
+		const [content, stats] = await Promise.all([
+			readFile(this.path, "utf8"),
+			stat(this.path),
+		]);
+		return { content, updatedAt: stats.mtime.toISOString() };
 	}
 
 	// Re-reads from disk (never trusts a stale in-memory copy — the file may have been

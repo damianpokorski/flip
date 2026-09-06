@@ -1,30 +1,60 @@
-export const DEFAULT_PANELS_YAML = `# FLIP panels — each entry is one embedded dashboard/service.
+export const DEFAULT_SERVICES_YAML = `# FLIP services — each entry is one embedded dashboard/service.
 #
 # Fields:
-#   id                     stable identifier, don't change once created
-#   title                  label shown in the panel switcher
-#   url                    the page to embed as an iframe
-#   position               display order, lower first
-#   hidden                 set true to hide from the panel switcher without deleting it
-#   healthCheckUrl         optional URL to ping for up/down status (defaults to \`url\` if omitted)
-#   healthCheckIntervalMs  optional per-panel override for how often to check, in ms
-#                          (falls back to config.yaml's healthCheckIntervalMs if omitted)
+#   id                stable identifier, don't change once created
+#   name              display name, exactly as the upstream project writes it (e.g. "qBittorrent")
+#   mark              2-letter tile abbreviation shown instead of an icon, e.g. "SO"
+#   hue               tile colour: sapphire, blue, mauve, green, yellow, peach, pink, teal, sky, lavender, flamingo, rosewater
+#   host              short hostname shown in the UI, e.g. "sonarr.home.lan"
+#   url               full URL to embed/open
+#   healthCheckUrl    optional separate URL to check liveness against instead of \`url\` (null = use \`url\`)
+#   ws                the single workspace this service belongs to — see workspaces.yaml
+#   pin               optional single-digit HUD shortcut (0-9, shown as \`N) — at most 10 services may be pinned
+#   codes             comma-separated "OK" HTTP status codes, e.g. "200, 401" — anything else counts as down
+#   every             how often to check, e.g. "30s", "5m"
+#   target            "frame" to embed in an iframe, "external" to open in a new tab
+#   proxyHeaders      true to route through FLIP's built-in header-stripping proxy (needs
+#                     PROXY_DOMAIN set) — for services that refuse to be iframed otherwise
+#   hidden            set true to hide from the switcher/HUD without deleting
+#   position          display order, lower first
 #
 # Feel free to hand-edit this file directly — FLIP picks up changes live, and any
 # comments you add to entries you don't otherwise touch are preserved.
 - id: 00000000-0000-7000-8000-000000000001
-  title: Example dashboard
+  name: Example service
+  mark: EX
+  hue: sapphire
+  host: example.com
   url: https://example.com
-  position: 0
-  hidden: false
   healthCheckUrl: null
-  healthCheckIntervalMs: null
+  ws: default
+  pin: null
+  codes: "200"
+  every: 30s
+  target: frame
+  proxyHeaders: false
+  hidden: false
+  position: 0
+`;
+
+export const DEFAULT_WORKSPACES_YAML = `# FLIP workspaces — groups of services shown together in the sidebar/HUD/spine.
+#
+# Fields:
+#   id        stable slug identifier, don't change once created (renaming \`name\` later won't change this)
+#   name      display name shown in the sidebar header, e.g. "MEDIA"
+#   label     2-char abbreviation shown on the spine pill, e.g. "MD"
+#   position  display order on the spine, lower first
+- id: default
+  name: DEFAULT
+  label: DF
+  position: 0
 `;
 
 export const DEFAULT_CONFIG_YAML = `# FLIP global configuration.
 #
-#   healthCheckIntervalMs  default time between health checks for panels that don't set their own
-#   healthCheckTimeoutMs   how long to wait for a health check response before marking a panel down
-healthCheckIntervalMs: 30000
+#   healthCheckTimeoutMs   how long to wait for a health check before marking a service down
+#
+# There is no per-install default check interval — each service sets its own \`every\`
+# in services.yaml. Hand-edit this value directly; there is no Settings UI for it.
 healthCheckTimeoutMs: 5000
 `;
