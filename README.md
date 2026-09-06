@@ -89,13 +89,13 @@ Root/unmatched-host traffic (the main UI and `/api/*`) always routes through the
 
 ### Example: docker-compose + an external Caddy for TLS
 
-A minimal production setup: FLIP built from this repo's Dockerfile, fronted by an external Caddy instance that terminates HTTPS for a real domain (Caddy provisions the certificate automatically via Let's Encrypt — nothing FLIP-specific to configure).
+A minimal production setup: FLIP running from the published GHCR image, fronted by an external Caddy instance that terminates HTTPS for a real domain (Caddy provisions the certificate automatically via Let's Encrypt — nothing FLIP-specific to configure).
 
 ```yaml
 # docker-compose.yml
 services:
   flip:
-    build: .
+    image: ghcr.io/damianpokorski/flip:latest # or a pinned version, or `build: .` to build from source
     restart: unless-stopped
     expose:
       - "8080"
