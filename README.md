@@ -43,6 +43,16 @@ The data directory (`./data/services.yaml`, `./data/workspaces.yaml`, `./data/co
 
 If startup logs show Caddy failing to bind its admin API (`listen tcp 127.0.0.1:2019: bind: address already in use`), something else on your machine already owns port `2019` — set `CADDY_ADMIN_PORT` to a free port instead of hunting down the conflict.
 
+### Running the published image
+
+Versioned images are published to GHCR on every release — no local build required:
+
+```bash
+docker run -d --name flip -p 8080:8080 -v flip-data:/data ghcr.io/damianpokorski/flip:latest
+```
+
+Pin a specific version (e.g. `ghcr.io/damianpokorski/flip:1.4.0`) instead of `latest` if you want reproducible upgrades — see [Releases](https://github.com/damianpokorski/flip/releases) for the changelog.
+
 ### Editing config by hand
 
 Open `data/services.yaml` or `data/workspaces.yaml` in an editor while FLIP is running — changes are picked up live and pushed to any open browser tab. Each field is documented with a comment in the generated file. CRUD actions taken through the Settings UI write back to the same files, preserving comments on entries you didn't touch. `Settings → Config` shows a live, read-only, syntax-colored view of the actual files on disk.
@@ -175,19 +185,19 @@ flip/
 
 ## Scripts
 
-| Command | Description |
-|---|---|
-| `bun run dev` | Start web and server in development mode |
-| `bun run build` | Build all apps |
-| `bun run data:reset` | Wipe the local data directory and recreate it with defaults |
-| `bun run check` | Run Biome lint + format checks |
-| `bun run check-types` | TypeScript type-check across all packages |
-| `bun run test` | Run server unit tests |
-| `bun run test:coverage` | Run server unit tests with coverage reporting |
-| `bun run test:e2e:install` | One-time: download the Chromium browser Playwright needs |
-| `bun run test:e2e` | Run the Playwright end-to-end suite |
-| `bun run docker` | Build the production Docker image and run it locally |
-| `bun run docker:stop` | Stop and remove the local Docker container started by `docker` |
+| Command                    | Description                                                    |
+| -------------------------- | -------------------------------------------------------------- |
+| `bun run dev`              | Start web and server in development mode                       |
+| `bun run build`            | Build all apps                                                 |
+| `bun run data:reset`       | Wipe the local data directory and recreate it with defaults    |
+| `bun run check`            | Run Biome lint + format checks                                 |
+| `bun run check-types`      | TypeScript type-check across all packages                      |
+| `bun run test`             | Run server unit tests                                          |
+| `bun run test:coverage`    | Run server unit tests with coverage reporting                  |
+| `bun run test:e2e:install` | One-time: download the Chromium browser Playwright needs       |
+| `bun run test:e2e`         | Run the Playwright end-to-end suite                            |
+| `bun run docker`           | Build the production Docker image and run it locally           |
+| `bun run docker:stop`      | Stop and remove the local Docker container started by `docker` |
 
 ---
 
@@ -227,7 +237,7 @@ A single background scheduler in `apps/server` checks each service's health-chec
 
 ### The HUD
 
-Pressing `` ` `` is a toggle, not a hold gesture: a global keydown listener in the root layout (`src/routes/+layout.svelte`) opens the HUD on the first press and closes it on the next, so it stays up while you type. It ignores the key entirely when focus is inside a form field, so typing a literal backtick into a URL doesn't summon it. While open, arrow keys/Shift+arrow keys/Enter/Escape/printable characters are all handled by that same listener, not by the visible search field (which is a controlled *display* of the typed query, not an editable input) — this matches the product's intent of being drivable without moving real keyboard focus.
+Pressing `` ` `` is a toggle, not a hold gesture: a global keydown listener in the root layout (`src/routes/+layout.svelte`) opens the HUD on the first press and closes it on the next, so it stays up while you type. It ignores the key entirely when focus is inside a form field, so typing a literal backtick into a URL doesn't summon it. While open, arrow keys/Shift+arrow keys/Enter/Escape/printable characters are all handled by that same listener, not by the visible search field (which is a controlled _display_ of the typed query, not an editable input) — this matches the product's intent of being drivable without moving real keyboard focus.
 
 ### Extending FLIP
 
@@ -237,17 +247,17 @@ The `services` resource (`packages/store/src/services.ts`, `apps/server/src/{con
 
 ## Tech stack
 
-| Package | Role |
-|---|---|
-| [Bun](https://bun.sh) | Runtime and package manager |
-| [SvelteKit](https://kit.svelte.dev) | Frontend framework — file-based routing, reactive UI |
-| [Elysia](https://elysiajs.com) | Type-safe HTTP framework for the API server |
-| [Caddy](https://caddyserver.com) (Apache-2.0) | Embedded header-stripping proxy — FLIP's sole network entrypoint, bundled as a binary in the Docker image |
-| [yaml](https://eemeli.org/yaml/) | Human-editable YAML data files — no database process required |
-| [Biome](https://biomejs.dev) | Linting and formatting (replaces ESLint + Prettier) |
-| [Vite+](https://viteplus.dev) | Monorepo task runner built on Vite/Rolldown |
-| [svelte-dnd-action](https://github.com/isaacs/svelte-dnd-action) | Drag-and-drop reordering — service lists, the workspace board, workspace order |
-| [Catppuccin](https://catppuccin.com) | Base colour ramp — Mocha, the only theme |
-| Oswald + Fira Code | Display type (names, labels) and mono type (numbers, machine strings), loaded from Google Fonts |
-| [Zod](https://zod.dev) | On-disk YAML shape validation, OpenAPI JSON-schema generation, and env-var validation (route validation itself uses Elysia's TypeBox) |
-| [Playwright](https://playwright.dev) | End-to-end browser testing |
+| Package                                                          | Role                                                                                                                                  |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| [Bun](https://bun.sh)                                            | Runtime and package manager                                                                                                           |
+| [SvelteKit](https://kit.svelte.dev)                              | Frontend framework — file-based routing, reactive UI                                                                                  |
+| [Elysia](https://elysiajs.com)                                   | Type-safe HTTP framework for the API server                                                                                           |
+| [Caddy](https://caddyserver.com) (Apache-2.0)                    | Embedded header-stripping proxy — FLIP's sole network entrypoint, bundled as a binary in the Docker image                             |
+| [yaml](https://eemeli.org/yaml/)                                 | Human-editable YAML data files — no database process required                                                                         |
+| [Biome](https://biomejs.dev)                                     | Linting and formatting (replaces ESLint + Prettier)                                                                                   |
+| [Vite+](https://viteplus.dev)                                    | Monorepo task runner built on Vite/Rolldown                                                                                           |
+| [svelte-dnd-action](https://github.com/isaacs/svelte-dnd-action) | Drag-and-drop reordering — service lists, the workspace board, workspace order                                                        |
+| [Catppuccin](https://catppuccin.com)                             | Base colour ramp — Mocha, the only theme                                                                                              |
+| Oswald + Fira Code                                               | Display type (names, labels) and mono type (numbers, machine strings), loaded from Google Fonts                                       |
+| [Zod](https://zod.dev)                                           | On-disk YAML shape validation, OpenAPI JSON-schema generation, and env-var validation (route validation itself uses Elysia's TypeBox) |
+| [Playwright](https://playwright.dev)                             | End-to-end browser testing                                                                                                            |

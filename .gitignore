@@ -44,6 +44,9 @@ lerna-debug.log*
 .turbo
 .nx
 
+# Vite+ generated git hook dispatcher (project-owned scripts in .vite-hooks/ are committed)
+.vite-hooks/_
+
 # Better-T-Stack
 .alchemy
 .vercel

@@ -9,6 +9,10 @@ test.describe("Service switcher — instant, no-reload toggling", () => {
 		request,
 	}) => {
 		await page.goto("/");
+		// page.goto() only waits for the load event, not client-side hydration — wait for the
+		// initial data fetch to render before snapshotting a baseline count, or rowsBefore can
+		// race to 0 instead of the true pre-hydration baseline (see hud.spec.ts for the same guard).
+		await expect(page.getByTestId("sidebar-service-row").first()).toBeVisible();
 		const rowsBefore = await page.getByTestId("sidebar-service-row").count();
 		const iframesBefore = await page.getByTestId("service-iframe").count();
 
