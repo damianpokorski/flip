@@ -1,6 +1,8 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
+import { appState } from "$lib/app-state.svelte";
+import IconButton from "../../components/core/IconButton.svelte";
 import TabBar from "../../components/nav/TabBar.svelte";
 
 const { children } = $props();
@@ -21,27 +23,42 @@ const activeTab = $derived(
 				? "Config"
 				: "Services",
 );
+
+// The mobile entry list (/settings itself) is its own screen with a back button, not a tab
+// bar — every real sub-route (/settings/services etc.), even reached from mobile, keeps the
+// desktop header as-is: those pages aren't in scope for a mobile redesign, per the source
+// design's own note that "each row pushes the same route desktop uses."
+const isMobileEntryList = $derived(
+	appState.isMobile && page.url.pathname === "/settings",
+);
 </script>
 
 <div class="page">
   <div class="head">
-    <div class="title-row">
-      <span class="title">SETTINGS</span>
-    </div>
-    <TabBar
-      tabs={[
-        "Services",
-        "Workspaces",
-        "Shortcuts",
-        "Config",
-        { name: "Account", disabled: true },
-      ]}
-      active={activeTab}
-      onselect={(name) => {
-        const path = TAB_ROUTES[name];
-        if (path) goto(path);
-      }}
-    />
+    {#if isMobileEntryList}
+      <div class="title-row mobile">
+        <IconButton glyph="←" size="touch" label="Back" onclick={() => goto("/")} />
+        <span class="title mobile">SETTINGS</span>
+      </div>
+    {:else}
+      <div class="title-row">
+        <span class="title">SETTINGS</span>
+      </div>
+      <TabBar
+        tabs={[
+          "Services",
+          "Workspaces",
+          "Shortcuts",
+          "Config",
+          { name: "Account", disabled: true },
+        ]}
+        active={activeTab}
+        onselect={(name) => {
+          const path = TAB_ROUTES[name];
+          if (path) goto(path);
+        }}
+      />
+    {/if}
   </div>
   {@render children()}
 </div>
@@ -65,11 +82,19 @@ const activeTab = $derived(
     gap: var(--sp-7);
     padding-bottom: var(--sp-8);
   }
+  .title-row.mobile {
+    align-items: center;
+    gap: var(--sp-6);
+    padding-bottom: var(--sp-9);
+  }
   .title {
     font-family: var(--font-display);
     font-size: var(--t-display-sm);
     font-weight: var(--w-semibold);
     letter-spacing: var(--track-head);
     color: var(--text-1);
+  }
+  .title.mobile {
+    font-size: var(--t-display-md);
   }
 </style>

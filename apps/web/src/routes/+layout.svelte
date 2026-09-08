@@ -1,7 +1,11 @@
 <script lang="ts">
 import { onMount } from "svelte";
 import "../app.css";
-import { appState, HUD_GRID_COLUMNS } from "$lib/app-state.svelte";
+import {
+	appState,
+	HUD_GRID_COLUMNS,
+	MOBILE_BREAKPOINT_QUERY,
+} from "$lib/app-state.svelte";
 import Hud from "../components/shell/Hud.svelte";
 import Spine from "../components/shell/Spine.svelte";
 
@@ -62,17 +66,29 @@ function openServiceFromUrl() {
 onMount(() => {
 	appState.refresh().then(openServiceFromUrl);
 	appState.connectSse();
+
+	// Live-updates appState.isMobile on resize (real phones don't cross this, but a resized
+	// desktop dev window does) — the initial value is set synchronously in app-state.svelte.ts
+	// itself so there's no flash of the wrong shell before this listener ever attaches.
+	const mobileQuery = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
+	const onMobileChange = (e: MediaQueryListEvent) => {
+		appState.isMobile = e.matches;
+	};
+	mobileQuery.addEventListener("change", onMobileChange);
+	return () => mobileQuery.removeEventListener("change", onMobileChange);
 });
 </script>
 
 <svelte:window onkeydown={onKeydown} />
 
 <div class="shell">
-	<Spine />
+	{#if !appState.isMobile}
+		<Spine />
+	{/if}
 	<main>
 		{@render children()}
 	</main>
-	{#if appState.hudOpen}
+	{#if appState.hudOpen && !appState.isMobile}
 		<Hud />
 	{/if}
 </div>

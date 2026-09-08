@@ -1,9 +1,14 @@
 <script lang="ts">
 import type { ServiceData } from "$lib/api";
 import { appState } from "$lib/app-state.svelte";
+import { workspaceLabel } from "$lib/workspace";
 import Badge from "../core/Badge.svelte";
 import IconButton from "../core/IconButton.svelte";
 import Latency from "../status/Latency.svelte";
+
+// Mobile's MobileTopBar renders its own chrome around the same iframe stack, so the topbar
+// here is skippable without touching mount/viewport logic at all.
+let { topbar = true }: { topbar?: boolean } = $props();
 
 const active = $derived(appState.activeService);
 // All non-hidden, embeddable services stay mounted regardless of workspace — switching
@@ -27,12 +32,6 @@ function registerFrame(node: HTMLIFrameElement, id: string) {
 	};
 }
 
-function workspaceLabel(id: string): string {
-	return (
-		appState.workspaces.find((workspace) => workspace.id === id)?.label ?? id
-	);
-}
-
 // Falls back to the raw URL whenever the proxy isn't actually configured server-side, even
 // if a stale `proxyHeaders: true` is set on the service — fail-open to "works like today,"
 // never fail-closed to a broken iframe.
@@ -43,7 +42,9 @@ function frameSrc(service: ServiceData): string {
 	return service.url;
 }
 
-function reload() {
+// Exported (plain function, not a prop) so MobileTopBar's own reload/open-external buttons
+// can drive the same iframe stack via `bind:this` instead of duplicating this logic.
+export function reload() {
 	const service = active;
 	if (!service) return;
 	const el = iframeEls[service.id];
@@ -58,19 +59,19 @@ function reload() {
 	});
 }
 
-function openExternally() {
+export function openExternally() {
 	if (active) window.open(active.url, "_blank", "noopener,noreferrer");
 }
 </script>
 
 <div class="frame">
-	{#if active}
+	{#if active && topbar}
 		<div class="topbar">
 			<span class="name">{active.name}</span>
 			<span class="host">{active.host}</span>
 			<Latency ms={active.health.ms} withDot size="2xs" />
 			<span class="spacer"></span>
-			<Badge tone="quiet">{workspaceLabel(active.ws)}</Badge>
+			<Badge tone="quiet">{workspaceLabel(appState.workspaces, active.ws)}</Badge>
 			<IconButton glyph="⟳" label="Reload frame" onclick={reload} />
 			<IconButton glyph="⇱" label="Open in a new tab" onclick={openExternally} />
 		</div>
@@ -103,6 +104,7 @@ function openExternally() {
 	.frame {
 		flex: 1;
 		min-width: 0;
+		min-height: 0;
 		display: flex;
 		flex-direction: column;
 		background: var(--bg-app);

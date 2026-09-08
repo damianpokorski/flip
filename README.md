@@ -25,7 +25,7 @@
 
 ## Getting started
 
-**Prerequisites:** [Bun](https://bun.sh) v1.3+ and [Caddy](https://caddyserver.com) v2 — FLIP's embedded Caddy proxy (see [Architecture](#architecture)) is the sole entrypoint in dev too, so it's a required local dependency, not just a production/Docker one. This repo already pins tool versions with [Mise](https://mise.jdx.dev) (`mise.toml`), so the easiest path is:
+**Prerequisites:** [Bun](https://bun.sh) v1.3+ and [Caddy](https://caddyserver.com) v2 — FLIP's embedded Caddy proxy (see [Architecture](#architecture)) is the sole entrypoint in dev too, so it's a required local dependency, not just a production/Docker one. You'll also want the ability to create custom DNS entries on your network — via your router's DNS settings, a local resolver like [Pi-hole](https://pi-hole.net), or your OS's hosts file — since FLIP is meant to embed your existing self-hosted services by their LAN hostname; this is separate from the one-time wildcard DNS record needed only if you use the optional embedded proxy for iframe-blocking services (see [Embedding services that block iframing](#embedding-services-that-block-iframing)). This repo already pins tool versions with [Mise](https://mise.jdx.dev) (`mise.toml`), so the easiest path is:
 
 ```bash
 mise install
