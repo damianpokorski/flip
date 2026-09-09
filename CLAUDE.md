@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Conventions for working on this repo, for both human contributors and Claude Code. This is a solo/personal-scale project (a self-hosted service-dashboard shell) — keep recommendations here pragmatic, not enterprise-heavy. For features, getting-started steps, and the scripts table, see `README.md`; this file focuses on SDLC conventions instead and shouldn't duplicate that content.
+Conventions for working on this repo, for both human contributors and Claude Code. This is a solo/personal-scale project (a self-hosted service-dashboard shell) — keep recommendations here pragmatic, not enterprise-heavy. For features and self-hosting/getting-started steps, see `README.md`; for running from source, project structure, and the scripts table, see `CONTRIBUTING.md`; this file focuses on SDLC conventions instead and shouldn't duplicate that content.
 
 ## Architecture overview
 

@@ -1,1 +1,19 @@
-vp staged
+vp staged || exit 1
+
+if git diff --cached --name-only | grep -qE '^(apps/web/|packages/)'; then
+	echo "UI-relevant files staged — running visual regression check..."
+	for p in 3000 5173 8080 2019; do
+		if lsof -ti:$p >/dev/null 2>&1; then
+			echo "Port $p is already in use — stop 'bun run dev' before committing UI changes."
+			exit 1
+		fi
+	done
+	bun run test:e2e:visual || {
+		echo ""
+		echo "Visual snapshot mismatch (or missing baseline)."
+		echo "Review apps/web/playwright-report/, and if the change is intentional:"
+		echo "  bun run test:e2e:visual:update"
+		echo "then git add the updated snapshot PNGs and commit again."
+		exit 1
+	}
+fi

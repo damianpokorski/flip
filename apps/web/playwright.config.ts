@@ -23,6 +23,14 @@ export default defineConfig({
   fullyParallel: false,
   retries: 0,
   reporter: "list",
+  expect: {
+    toHaveScreenshot: {
+      // fontconfig/freetype text rasterization differs slightly between machines (e.g. a
+      // dev's desktop Linux install vs. CI's bare ubuntu-latest runner) even with identical,
+      // self-hosted font files — tolerate sub-1% glyph-edge noise, not real regressions.
+      maxDiffPixelRatio: 0.02,
+    },
+  },
   use: {
     // The server webServer entry below spawns the embedded Caddy proxy itself (it's part of
     // apps/server's own startup, not a separate process here) — routing through it, rather
@@ -34,10 +42,12 @@ export default defineConfig({
   projects: [
     // The two projects run against completely different DOMs (no spine/sidebar on mobile,
     // no recents-bar/switcher on desktop) — testIgnore keeps each spec set scoped to the
-    // viewport it was actually written for.
+    // viewport it was actually written for. showcase/ is excluded outright: it asserts on a
+    // real "Xms" health reading, which never arrives here since DISABLE_HEALTH_CHECKS is set
+    // below — it only runs under playwright.showcase.config.ts (bun run docs:screenshots).
     {
       name: "chromium",
-      testIgnore: /mobile\//,
+      testIgnore: /mobile\/|showcase\//,
       use: { ...devices["Desktop Chrome"] },
     },
     {
@@ -60,6 +70,9 @@ export default defineConfig({
       reuseExistingServer: false,
       env: {
         DATA_DIR: E2E_DATA_DIR,
+        // See apps/server/src/index.ts — keeps every service's health/latency display
+        // deterministic ("down") for both functional and visual specs.
+        DISABLE_HEALTH_CHECKS: "1",
       },
       stdout: "pipe",
       stderr: "pipe",

@@ -4,7 +4,11 @@
 
 [MIT licensed](./LICENSE)
 
-<!-- TODO: screenshot/GIF of the shell (spine + sidebar + frame) and the HUD in action -->
+|                                              |                                  |                                                       |
+| -------------------------------------------- | -------------------------------- | ----------------------------------------------------- |
+| ![Dashboard](docs/screenshots/dashboard.png) | ![HUD](docs/screenshots/hud.png) | ![Settings — Services](docs/screenshots/services.png) |
+
+<sub>Demo data, not a live install. Regenerate with `bun run docs:screenshots`.</sub>
 
 ---
 
@@ -25,27 +29,9 @@
 
 ## Getting started
 
-**Prerequisites:** [Bun](https://bun.sh) v1.3+ and [Caddy](https://caddyserver.com) v2 — FLIP's embedded Caddy proxy (see [Architecture](#architecture)) is the sole entrypoint in dev too, so it's a required local dependency, not just a production/Docker one. You'll also want the ability to create custom DNS entries on your network — via your router's DNS settings, a local resolver like [Pi-hole](https://pi-hole.net), or your OS's hosts file — since FLIP is meant to embed your existing self-hosted services by their LAN hostname; this is separate from the one-time wildcard DNS record needed only if you use the optional embedded proxy for iframe-blocking services (see [Embedding services that block iframing](#embedding-services-that-block-iframing)). This repo already pins tool versions with [Mise](https://mise.jdx.dev) (`mise.toml`), so the easiest path is:
+**Prerequisites:** [Docker](https://www.docker.com). You'll also want the ability to create custom DNS entries on your network — via your router's DNS settings, a local resolver like [Pi-hole](https://pi-hole.net), or your OS's hosts file — since FLIP is meant to embed your existing self-hosted services by their LAN hostname; this is separate from the one-time wildcard DNS record needed only if you use the optional embedded proxy for iframe-blocking services (see [Embedding services that block iframing](#embedding-services-that-block-iframing)).
 
-```bash
-mise install
-```
-
-```bash
-# 1. Install dependencies
-bun install
-
-# 2. Start the dev server
-bun run dev
-```
-
-The data directory (`./data/services.yaml`, `./data/workspaces.yaml`, `./data/config.yaml`) is created automatically on first boot, with one example service and one workspace — no separate setup step needed. FLIP is reachable at a single address, `http://localhost:8080` — the embedded Caddy proxy in front of everything (see [Architecture](#architecture)); Vite (`:5173`) and the API server (`:3000`) are internal upstreams behind it, not meant to be visited directly.
-
-If startup logs show Caddy failing to bind its admin API (`listen tcp 127.0.0.1:2019: bind: address already in use`), something else on your machine already owns port `2019` — set `CADDY_ADMIN_PORT` to a free port instead of hunting down the conflict.
-
-### Running the published image
-
-Versioned images are published to GHCR on every release — no local build required:
+Versioned images are published to GHCR on every release — no build step required:
 
 ```bash
 docker run -d --name flip -p 8080:8080 -v flip-data:/data ghcr.io/damianpokorski/flip:latest
@@ -53,15 +39,21 @@ docker run -d --name flip -p 8080:8080 -v flip-data:/data ghcr.io/damianpokorski
 
 Pin a specific version (e.g. `ghcr.io/damianpokorski/flip:1.4.0`) instead of `latest` if you want reproducible upgrades — see [Releases](https://github.com/damianpokorski/flip/releases) for the changelog.
 
+The data directory (`services.yaml`, `workspaces.yaml`, `config.yaml`, inside the `flip-data` volume) is created automatically on first boot, with one example service and one workspace — no separate setup step needed. FLIP is reachable at a single address, `http://localhost:8080`; everything — the web UI, the API, and per-service subdomains if you configure them — is served through FLIP's own embedded proxy, so there's nothing else to expose.
+
+If container logs show Caddy failing to bind its admin API (`listen tcp 127.0.0.1:2019: bind: address already in use` — most likely if you're running more than one FLIP container on the same network namespace), set the `CADDY_ADMIN_PORT` environment variable to a free port.
+
+Want to run FLIP from source instead — for development, or to build the image yourself? See [CONTRIBUTING.md](./CONTRIBUTING.md).
+
 ### Editing config by hand
 
-Open `data/services.yaml` or `data/workspaces.yaml` in an editor while FLIP is running — changes are picked up live and pushed to any open browser tab. Each field is documented with a comment in the generated file. CRUD actions taken through the Settings UI write back to the same files, preserving comments on entries you didn't touch. `Settings → Config` shows a live, read-only, syntax-colored view of the actual files on disk.
+Open `services.yaml` or `workspaces.yaml` (inside the `flip-data` volume, or `./data/` if bind-mounted) in an editor while FLIP is running — changes are picked up live and pushed to any open browser tab. Each field is documented with a comment in the generated file. CRUD actions taken through the Settings UI write back to the same files, preserving comments on entries you didn't touch. `Settings → Config` shows a live, read-only, syntax-colored view of the actual files on disk.
 
 ---
 
 ## Deploying behind a reverse proxy
 
-FLIP's embedded Caddy proxy (`CaddyProxyService`) is the single network entrypoint — one published port for the web UI, the API, and (when configured) per-service subdomains alike. An external reverse proxy in front of FLIP is optional and only needed for TLS termination on a real domain; it always talks to FLIP's one published port, never bypasses it:
+FLIP's embedded Caddy proxy is the single network entrypoint — one published port for the web UI, the API, and (when configured) per-service subdomains alike. An external reverse proxy in front of FLIP is optional and only needed for TLS termination on a real domain; it always talks to FLIP's one published port, never bypasses it:
 
 ```mermaid
 flowchart LR
@@ -72,8 +64,8 @@ flowchart LR
     end
 
     subgraph flip["FLIP container"]
-        EmbProxy["Embedded proxy\n(CaddyProxyService) :8080\nsole entrypoint"]
-        Server["apps/server\n:3000 — internal only\nweb UI + API"]
+        EmbProxy["Embedded proxy\n:8080\nsole entrypoint"]
+        Server["FLIP server\n:3000 — internal only\nweb UI + API"]
         EmbProxy -- "root / unmatched host" --> Server
     end
 
@@ -85,7 +77,7 @@ flowchart LR
     EmbProxy -- "reverse proxy, header-stripped" --> SvcBlocked
 ```
 
-Root/unmatched-host traffic (the main UI and `/api/*`) always routes through the embedded proxy to `apps/server`, which is no longer reachable directly. Per-service subdomains (`PROXY_PORT`/`PROXY_DOMAIN`, see [Embedding services that block iframing](#embedding-services-that-block-iframing)) share the same published port, routed by hostname.
+Root/unmatched-host traffic (the main UI and `/api/*`) always routes through the embedded proxy. Per-service subdomains (`PROXY_PORT`/`PROXY_DOMAIN`, see [Embedding services that block iframing](#embedding-services-that-block-iframing)) share the same published port, routed by hostname.
 
 ### Example: docker-compose + an external Caddy for TLS
 
@@ -95,7 +87,7 @@ A minimal production setup: FLIP running from the published GHCR image, fronted 
 # docker-compose.yml
 services:
   flip:
-    image: ghcr.io/damianpokorski/flip:latest # or a pinned version, or `build: .` to build from source
+    image: ghcr.io/damianpokorski/flip:latest # or a pinned version
     restart: unless-stopped
     expose:
       - "8080"
@@ -167,97 +159,8 @@ Navigate to `http://localhost:8080`. The **spine** (far left) switches workspace
 
 Press **`` ` ``** anywhere to raise the HUD: a full-screen tile grid of the current workspace (or, once you start typing, every service across every workspace). Arrow keys move, Enter opens, Escape or pressing `` ` `` again dismisses.
 
-## Project structure
-
-```
-flip/
-├── apps/
-│   ├── web/         # SvelteKit frontend (shell, HUD, settings)
-│   ├── server/      # Elysia REST API
-│   └── bootstrap/   # Ensures the data directory and default YAML files exist on startup
-├── packages/
-│   ├── store/       # YAML-backed data layer (services, workspaces, config) — no database
-│   ├── env/         # Shared environment variable schemas
-│   └── config/      # Shared TypeScript config
-```
-
 ---
 
-## Scripts
+## Contributing
 
-| Command                    | Description                                                    |
-| -------------------------- | -------------------------------------------------------------- |
-| `bun run dev`              | Start web and server in development mode                       |
-| `bun run build`            | Build all apps                                                 |
-| `bun run data:reset`       | Wipe the local data directory and recreate it with defaults    |
-| `bun run check`            | Run Biome lint + format checks                                 |
-| `bun run check-types`      | TypeScript type-check across all packages                      |
-| `bun run test`             | Run server unit tests                                          |
-| `bun run test:coverage`    | Run server unit tests with coverage reporting                  |
-| `bun run test:e2e:install` | One-time: download the Chromium browser Playwright needs       |
-| `bun run test:e2e`         | Run the Playwright end-to-end suite                            |
-| `bun run docker`           | Build the production Docker image and run it locally           |
-| `bun run docker:stop`      | Stop and remove the local Docker container started by `docker` |
-
----
-
-## End-to-end testing
-
-Playwright specs live in `apps/web/e2e/`: service CRUD in Settings, service/workspace switching (verifying iframes stay mounted across a switch), and the HUD's press-to-search keyboard flow.
-
-```bash
-# One-time: download the Chromium browser
-bun run test:e2e:install
-
-# Run the suite
-bun run test:e2e
-```
-
-This spins up the server and web dev servers for you (Playwright's `webServer` config) against a **disposable, seeded data directory** (`apps/web/e2e/.e2e-data/`, gitignored) — never your own `data/`.
-
-**Don't run `bun run test:e2e` while `bun run dev` is already up** — both bind the same ports (8080/3000/5173, since Playwright also drives the embedded Caddy proxy for real dev-path coverage).
-
----
-
-## Internals
-
-### Architecture
-
-FLIP is a Bun monorepo with three apps that run side by side, always fronted by an embedded Caddy proxy — in both dev and prod, nothing is reachable except through it:
-
-- **Embedded Caddy proxy** (`CaddyProxyService`, `apps/server/src/services/CaddyProxyService.ts`) — always spawned by `apps/server`, listening on `PROXY_PORT` (default `8080`), the one address anything external ever talks to. Its generated config differs by `NODE_ENV`: in prod, root/unmatched-host traffic reverse-proxies straight to `apps/server` (which already serves both the SPA and the API there); in dev, it instead splits by path — `/api/*` to `apps/server`, everything else to Vite — since the SPA and API are two separate processes there. When `PROXY_DOMAIN` is set, it additionally routes per-service subdomains for the header-stripping feature (see [Embedding services that block iframing](#embedding-services-that-block-iframing)) — those exact-host routes always take precedence over the root/catch-all route regardless of Caddyfile block order, since Caddy sorts by matcher specificity.
-- **`apps/web`** (SvelteKit, `:5173` internally) — the browser-facing app, reached through the embedded proxy, never directly. `/` renders the shell (spine + sidebar + frame) and the HUD overlay; `/settings/*` renders the management UI (services, workspaces, shortcuts, config). All data fetching goes through a typed Eden Treaty client in `src/lib/api.ts`, which always targets `window.location.origin` — same-origin in both dev and prod, since the embedded proxy makes that true either way; shared reactive state (services, workspaces, active selection, HUD state) lives in `src/lib/app-state.svelte.ts`.
-- **`apps/server`** (Elysia, `:3000` internally, loopback-bound) — the REST API, also reached only through the embedded proxy. Resource controllers for `services` (CRUD + reorder + a probe endpoint, embeds live health status) and `workspaces` (CRUD + reorder, cascades a deletion by reassigning member services to the next remaining workspace, refusing the deletion only if it's the last workspace left), plus `config` (read-only — also surfaces the env-derived `proxyDomain`/`proxyPort` for the embedded proxy feature, not just `config.yaml`'s contents) and `events` (SSE change/health notifications). Each resource also exposes a `/raw` endpoint returning its live YAML file text, used by the Config settings tab. OpenAPI docs are generated automatically and available at `/api/openapi`.
-- **`apps/bootstrap`** — ensures `DATA_DIR` and its default YAML files exist on startup. Runs once before `apps/server` starts (see the Dockerfile `CMD`); `apps/server` also runs the same step itself as a safety net, so local dev never needs this run manually.
-- **`packages/store`** — the YAML data layer shared by `apps/server` and `apps/bootstrap`. `services.yaml` holds each service's identity, tile, health-check settings, and the single workspace id it belongs to; `workspaces.yaml` holds workspace identity/order; `config.yaml` holds the shared health-check timeout. Reads/writes go through the `yaml` package's `Document` API rather than plain parse/stringify, so comments and formatting on untouched parts of the file survive an edit.
-
-### Health checks
-
-A single background scheduler in `apps/server` checks each service's health-check URL (or its own URL, if none is set) once its own `every` interval has elapsed, comparing the response status against that service's `codes` list — a response outside that list counts as down, same as a timeout or network error. The result — a latency reading in milliseconds (or `null` for down) plus a derived bucket (`fast` / `ok` / `slow` / `down`, shared logic in `packages/store/src/health-bucket.ts`) — is kept in memory only. Status is never written to YAML: it resets after a restart, which keeps the config files stable and avoids racing with file-watching. Status is pushed live to open browser tabs over the same SSE channel used for data changes.
-
-### The HUD
-
-Pressing `` ` `` is a toggle, not a hold gesture: a global keydown listener in the root layout (`src/routes/+layout.svelte`) opens the HUD on the first press and closes it on the next, so it stays up while you type. It ignores the key entirely when focus is inside a form field, so typing a literal backtick into a URL doesn't summon it. While open, arrow keys/Shift+arrow keys/Enter/Escape/printable characters are all handled by that same listener, not by the visible search field (which is a controlled _display_ of the typed query, not an editable input) — this matches the product's intent of being drivable without moving real keyboard focus.
-
-### Extending FLIP
-
-The `services` resource (`packages/store/src/services.ts`, `apps/server/src/{controllers,services,db}/*Services*`) is the reference implementation for adding another YAML-backed resource — see `CLAUDE.md`'s New feature checklist — the repo's contributor/AI-agent conventions doc — for the step-by-step pattern.
-
----
-
-## Tech stack
-
-| Package                                                          | Role                                                                                                                                  |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| [Bun](https://bun.sh)                                            | Runtime and package manager                                                                                                           |
-| [SvelteKit](https://kit.svelte.dev)                              | Frontend framework — file-based routing, reactive UI                                                                                  |
-| [Elysia](https://elysiajs.com)                                   | Type-safe HTTP framework for the API server                                                                                           |
-| [Caddy](https://caddyserver.com) (Apache-2.0)                    | Embedded header-stripping proxy — FLIP's sole network entrypoint, bundled as a binary in the Docker image                             |
-| [yaml](https://eemeli.org/yaml/)                                 | Human-editable YAML data files — no database process required                                                                         |
-| [Biome](https://biomejs.dev)                                     | Linting and formatting (replaces ESLint + Prettier)                                                                                   |
-| [Vite+](https://viteplus.dev)                                    | Monorepo task runner built on Vite/Rolldown                                                                                           |
-| [svelte-dnd-action](https://github.com/isaacs/svelte-dnd-action) | Drag-and-drop reordering — service lists, the workspace board, workspace order                                                        |
-| [Catppuccin](https://catppuccin.com)                             | Base colour ramp — Mocha, the only theme                                                                                              |
-| Oswald + Fira Code                                               | Display type (names, labels) and mono type (numbers, machine strings), loaded from Google Fonts                                       |
-| [Zod](https://zod.dev)                                           | On-disk YAML shape validation, OpenAPI JSON-schema generation, and env-var validation (route validation itself uses Elysia's TypeBox) |
-| [Playwright](https://playwright.dev)                             | End-to-end browser testing                                                                                                            |
+FLIP is open source under the [MIT license](./LICENSE). If you want to run it from source, understand how it's built, or send a PR, see [CONTRIBUTING.md](./CONTRIBUTING.md) — it covers the dev workflow, project structure, testing, and internals. Repo-specific conventions (commit style, linting, testing rules) are documented in [CLAUDE.md](./CLAUDE.md).
