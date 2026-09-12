@@ -45,7 +45,9 @@ describe("buildCaddyfile", () => {
 			adminPort: 2019,
 		});
 
-		expect(caddyfile).toContain(":8080 {\n\treverse_proxy 127.0.0.1:3000\n}");
+		expect(caddyfile).toContain(
+			"http://:8080 {\n\treverse_proxy 127.0.0.1:3000\n}",
+		);
 		expect(caddyfile).not.toContain("handle");
 	});
 
@@ -74,7 +76,7 @@ describe("buildCaddyfile", () => {
 			adminPort: 2019,
 		});
 
-		expect(caddyfile).toContain(":8080 {");
+		expect(caddyfile).toContain("http://:8080 {");
 	});
 
 	test("emits no per-service blocks when domain is undefined, regardless of proxyHeaders", () => {
@@ -107,8 +109,30 @@ describe("buildCaddyfile", () => {
 			adminPort: 2019,
 		});
 
-		expect(caddyfile).toContain("a.flip.lan:8080");
+		expect(caddyfile).toContain("http://a.flip.lan:8080");
 		expect(caddyfile).not.toContain("b.flip.lan:8080");
+	});
+
+	test("per-service and root site addresses always carry an explicit http:// scheme", () => {
+		// A bare "host:port" address is ambiguous to Caddy's Caddyfile adapter, which reacts
+		// by attaching a stub TLS connection policy to the whole shared server — silently
+		// wrapping the entire port in TLS even with auto_https off, and breaking every other
+		// site sharing that port (confirmed against Caddy's own admin API: a bare per-service
+		// address produced "tls_connection_policies":[{}] on srv0). http:// must stay explicit
+		// on every address this function emits.
+		const services = [service({ id: "a", proxyHeaders: true })];
+
+		const caddyfile = buildCaddyfile({
+			services: services as never,
+			mode: "prod",
+			appPort: 3000,
+			proxyPort: 8080,
+			domain: "flip.lan",
+			adminPort: 2019,
+		});
+
+		expect(caddyfile).toContain("http://:8080 {");
+		expect(caddyfile).toContain("http://a.flip.lan:8080 {");
 	});
 
 	test("reverse-proxies to the URL's origin only, dropping any path", () => {
@@ -141,6 +165,27 @@ describe("buildCaddyfile", () => {
 
 		expect(caddyfile).toContain("header_down -X-Frame-Options");
 		expect(caddyfile).toContain("header_down Content-Security-Policy");
+	});
+
+	test("rewrites the outbound Host header to the real upstream's own host:port", () => {
+		// Caddy's reverse_proxy preserves the client's original Host header by default. Left
+		// unrewritten, the upstream (and anything downstream of it that also routes by Host,
+		// e.g. a LAN-wide reverse proxy) sees FLIP's own proxy subdomain instead of the
+		// service's real one — which can misroute the request right back to FLIP in a loop.
+		const services = [service()];
+
+		const caddyfile = buildCaddyfile({
+			services: services as never,
+			mode: "prod",
+			appPort: 3000,
+			proxyPort: 8080,
+			domain: "flip.lan",
+			adminPort: 2019,
+		});
+
+		expect(caddyfile).toContain(
+			"header_up Host {http.reverse_proxy.upstream.hostport}",
+		);
 	});
 
 	test("admin API listens on the given adminPort", () => {
