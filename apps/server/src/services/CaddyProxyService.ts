@@ -77,9 +77,17 @@ export function buildCaddyfile({
 				})
 		: [];
 
+	// auto_https off only disables Caddy's *automatic* cert management (ACME, http->https
+	// redirects) — it doesn't stop Caddy from defaulting every server to advertise h2/h3, and
+	// h3 (QUIC) mandates TLS, so a plain "auto_https off" server can still stand up a
+	// TLS-requiring listener via Caddy's local self-signed identity. Pin to h1 explicitly so
+	// this proxy never offers a protocol that needs TLS, matching the "plain HTTP only" design.
 	return `{
 	admin localhost:${adminPort}
 	auto_https off
+	servers {
+		protocols h1
+	}
 }
 
 ${[rootBlock, ...serviceBlocks].join("\n\n")}
