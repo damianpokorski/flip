@@ -2,6 +2,7 @@
 import type { TileHue } from "@flip/store";
 import { onMount } from "svelte";
 import { goto } from "$app/navigation";
+import type { SiteData } from "$lib/api";
 import { createApi } from "$lib/api";
 import { appState } from "$lib/app-state.svelte";
 import ServiceForm from "../../../../components/settings/ServiceForm.svelte";
@@ -14,15 +15,24 @@ let mark = $state("");
 let hue = $state<TileHue>("sapphire");
 let host = $state("");
 let healthCheckUrl = $state<string | null>(null);
+let source = $state<"external" | "local">("external");
+let localSlug = $state<string | null>(null);
 let ws = $state("");
 let pin = $state<string | null>(null);
 let codes = $state("200");
 let every = $state("30s");
 let target = $state<"frame" | "external">("frame");
 let proxyHeaders = $state(false);
+let sites = $state<SiteData[]>([]);
 
-onMount(() => {
+onMount(async () => {
 	appState.refresh();
+	const { data, error } = await api.api.sites.get();
+	if (error) {
+		console.error("Failed to load local sites", error);
+		return;
+	}
+	sites = data;
 });
 
 async function save() {
@@ -33,6 +43,8 @@ async function save() {
 		host,
 		url,
 		healthCheckUrl,
+		source,
+		localSlug,
 		ws,
 		pin,
 		codes,
@@ -58,6 +70,8 @@ async function save() {
 		bind:hue
 		bind:host
 		bind:healthCheckUrl
+		bind:source
+		bind:localSlug
 		bind:ws
 		bind:pin
 		bind:codes
@@ -65,6 +79,7 @@ async function save() {
 		bind:target
 		bind:proxyHeaders
 		proxyAvailable={!!appState.proxyDomain}
+		{sites}
 		workspaces={appState.workspaces}
 		onsave={save}
 		oncancel={() => goto("/settings/services")}

@@ -3,6 +3,7 @@ import type { TileHue } from "@flip/store";
 import { onMount } from "svelte";
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
+import type { SiteData } from "$lib/api";
 import { createApi } from "$lib/api";
 import { appState } from "$lib/app-state.svelte";
 import ServiceForm from "../../../../components/settings/ServiceForm.svelte";
@@ -18,15 +19,26 @@ let mark = $state("");
 let hue = $state<TileHue>("sapphire");
 let host = $state("");
 let healthCheckUrl = $state<string | null>(null);
+let source = $state<"external" | "local">("external");
+let localSlug = $state<string | null>(null);
 let ws = $state("");
 let pin = $state<string | null>(null);
 let codes = $state("200");
 let every = $state("30s");
 let target = $state<"frame" | "external">("frame");
 let proxyHeaders = $state(false);
+let sites = $state<SiteData[]>([]);
 
 onMount(async () => {
-	await appState.refresh();
+	const [, sitesResult] = await Promise.all([
+		appState.refresh(),
+		api.api.sites.get(),
+	]);
+	if (sitesResult.error) {
+		console.error("Failed to load local sites", sitesResult.error);
+	} else {
+		sites = sitesResult.data;
+	}
 	const service = appState.services.find((s) => s.id === id);
 	if (!service) {
 		goto("/settings/services");
@@ -38,6 +50,8 @@ onMount(async () => {
 	hue = service.hue;
 	host = service.host;
 	healthCheckUrl = service.healthCheckUrl;
+	source = service.source;
+	localSlug = service.localSlug;
 	ws = service.ws;
 	pin = service.pin;
 	codes = service.codes;
@@ -55,6 +69,8 @@ async function save() {
 		host,
 		url,
 		healthCheckUrl,
+		source,
+		localSlug,
 		ws,
 		pin,
 		codes,
@@ -81,6 +97,8 @@ async function save() {
 			bind:hue
 			bind:host
 			bind:healthCheckUrl
+			bind:source
+			bind:localSlug
 			bind:ws
 			bind:pin
 			bind:codes
@@ -88,6 +106,7 @@ async function save() {
 			bind:target
 			bind:proxyHeaders
 			proxyAvailable={!!appState.proxyDomain}
+			{sites}
 			workspaces={appState.workspaces}
 			onsave={save}
 			oncancel={() => goto("/settings/services")}

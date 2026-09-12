@@ -2,12 +2,16 @@ export const DEFAULT_SERVICES_YAML = `# FLIP services — each entry is one embe
 #
 # Fields:
 #   id                stable identifier, don't change once created
-#   name              display name, exactly as the upstream project writes it (e.g. "qBittorrent")
-#   mark              2-letter tile abbreviation shown instead of an icon, e.g. "SO"
+#   name              display name, exactly as the upstream project writes it (e.g. "Jellyfin")
+#   mark              2-letter tile abbreviation shown instead of an icon, e.g. "NA"
 #   hue               tile colour: sapphire, blue, mauve, green, yellow, peach, pink, teal, sky, lavender, flamingo, rosewater
-#   host              short hostname shown in the UI, e.g. "sonarr.home.lan"
-#   url               full URL to embed/open
+#   host              short hostname shown in the UI, e.g. "nas.home.lan"
+#   url               full URL to embed/open (source: external) — ignored/overwritten by FLIP
+#                     for source: local, where it's derived as "/api/sites/<localSlug>/"
 #   healthCheckUrl    optional separate URL to check liveness against instead of \`url\` (null = use \`url\`)
+#   source            "external" (default) for a remote url, or "local" to serve a folder
+#                     mounted under DATA_DIR/sites/<localSlug>/index.html instead
+#   localSlug         required when source is "local" — the DATA_DIR/sites/ subdirectory name
 #   ws                the single workspace this service belongs to — see workspaces.yaml
 #   pin               optional single-digit HUD shortcut (0-9, shown as \`N) — at most 10 services may be pinned
 #   codes             comma-separated "OK" HTTP status codes, e.g. "200, 401" — anything else counts as down
@@ -27,6 +31,8 @@ export const DEFAULT_SERVICES_YAML = `# FLIP services — each entry is one embe
   host: example.com
   url: https://example.com
   healthCheckUrl: null
+  source: external
+  localSlug: null
   ws: default
   pin: null
   codes: "200"

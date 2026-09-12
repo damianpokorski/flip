@@ -1,6 +1,6 @@
 # FLIP
 
-**F**ast **L**ocal **I**frame **P**anel(s) — a self-hosted dashboard shell. Put every service on your LAN — Sonarr, Jellyfin, Pi-hole, Home Assistant, a router admin page — behind one window, grouped into workspaces, switchable without ever reloading a frame.
+**F**ast **L**ocal **I**frame **P**anel(s) — a self-hosted dashboard shell. Put every service on your LAN — a NAS, Jellyfin, Pi-hole, Home Assistant, a router admin page — behind one window, grouped into workspaces, switchable without ever reloading a frame.
 
 [MIT licensed](./LICENSE)
 
@@ -24,6 +24,7 @@
 - **Embedded header-stripping proxy** — a per-service toggle routes a stubborn service's iframe through FLIP's own bundled Caddy proxy, which strips/rewrites the `X-Frame-Options`/CSP headers refusing to be framed, instead of only offering "open in a new tab" or requiring you to run a separate reverse proxy yourself
 - **Real drag-and-drop** — reorder services, move a service to a different workspace, and reorder workspaces themselves, all by dragging
 - **Hide without deleting** — mark a service hidden to keep its config around without showing it in the switcher
+- **Host your own static sites** — mount a folder of pre-built HTML/CSS/JS onto the FLIP container and tile it like any other service, no separate web server or upload step needed
 
 ---
 
@@ -39,7 +40,7 @@ docker run -d --name flip -p 8080:8080 -v flip-data:/data ghcr.io/damianpokorski
 
 Pin a specific version (e.g. `ghcr.io/damianpokorski/flip:1.4.0`) instead of `latest` if you want reproducible upgrades — see [Releases](https://github.com/damianpokorski/flip/releases) for the changelog.
 
-The data directory (`services.yaml`, `workspaces.yaml`, `config.yaml`, inside the `flip-data` volume) is created automatically on first boot, with one example service and one workspace — no separate setup step needed. FLIP is reachable at a single address, `http://localhost:8080`; everything — the web UI, the API, and per-service subdomains if you configure them — is served through FLIP's own embedded proxy, so there's nothing else to expose.
+The data directory (`services.yaml`, `workspaces.yaml`, `config.yaml`, and an empty `sites/` folder ready for [locally-hosted static sites](#hosting-local-static-sites), all inside the `flip-data` volume) is created automatically on first boot, with one example service and one workspace — no separate setup step needed. FLIP is reachable at a single address, `http://localhost:8080`; everything — the web UI, the API, and per-service subdomains if you configure them — is served through FLIP's own embedded proxy, so there's nothing else to expose.
 
 If container logs show Caddy failing to bind its admin API (`listen tcp 127.0.0.1:2019: bind: address already in use` — most likely if you're running more than one FLIP container on the same network namespace), set the `CADDY_ADMIN_PORT` environment variable to a free port.
 
@@ -95,6 +96,10 @@ services:
     #   PROXY_DOMAIN: flip.home.lan   # optional — only needed for the per-service subdomain proxy
     volumes:
       - flip-data:/data
+      # optional — mount a folder as a local static site (see "Hosting local
+      # static sites" below); the host path (left of the colon) can be anything you like, the
+      # container path must be DATA_DIR/sites/<slug>
+      - ./my-page:/data/sites/my-page
 
   caddy:
     image: caddy:2
@@ -135,6 +140,18 @@ Some self-hosted apps send `X-Frame-Options`/`Content-Security-Policy` response 
 3. On the service that refuses to embed, toggle **"Route through FLIP's header-stripping proxy"** in Settings → Services (add-service probing suggests this automatically when it detects the service isn't embeddable). FLIP now loads that service's iframe from `http://<service-id>.flip.home.lan:8080/` instead of its real URL — Caddy reverse-proxies to the real service behind the scenes, stripping the headers that were blocking it.
 
 **Plain HTTP only** — the embedded proxy doesn't terminate TLS. If FLIP's own origin is served over HTTPS by an external front-proxy, embedding a plain-HTTP iframe target will hit the browser's mixed-content block; this setup is intended for LAN-only/plain-HTTP deployments.
+
+---
+
+## Hosting local static sites
+
+Some things you want on the dashboard aren't a running service with a URL — just a folder of static files (a status page, a small hand-written tool, a static site export). FLIP can serve those itself:
+
+1. Mount (or bind-mount) a folder onto the FLIP container under `DATA_DIR/sites/<slug>/` — e.g. `-v ./my-page:/data/sites/my-page`. The folder must contain an `index.html` at its root; relative links to other files in the same folder (CSS, JS, images) work as usual.
+2. In `Settings → Services → + Add service`, toggle **"Serve a local folder instead of a URL"** and pick `my-page` from the list.
+3. The tile behaves exactly like any other service — same HUD entry, same always-mounted iframe, same health check (down if the folder or its `index.html` goes missing).
+
+There's no upload form by design — mount or drop files in directly, the same way `services.yaml`/`workspaces.yaml` are meant to be hand-edited.
 
 ---
 

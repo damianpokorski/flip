@@ -2,6 +2,10 @@
 
 Conventions for working on this repo, for both human contributors and Claude Code. This is a solo/personal-scale project (a self-hosted service-dashboard shell) — keep recommendations here pragmatic, not enterprise-heavy. For features and self-hosting/getting-started steps, see `README.md`; for running from source, project structure, and the scripts table, see `CONTRIBUTING.md`; this file focuses on SDLC conventions instead and shouldn't duplicate that content.
 
+## Claude Code: no git/GitHub write actions, ever
+
+Claude Code must never run `git commit`, `git push`, or any `gh` (GitHub CLI) command that changes remote or repo state (creating/merging/closing PRs or issues, tags, releases, branch push/delete, etc.) in this repo — no exceptions, and this stands even if a future request explicitly asks for it ("just commit this", "push it up", "open a PR"). Always stop once changes are staged (or a PR description/commit message is drafted) and hand off to the user to review and run those commands themselves. Read-only git/`gh` commands (`status`, `diff`, `log`, `show`, `gh pr view`, etc.) are fine.
+
 ## Architecture overview
 
 Bun workspaces monorepo: a SvelteKit static SPA (`apps/web`) talks to a Bun-native Elysia API (`apps/server`), backed by human-editable YAML files under `DATA_DIR` (`packages/store`, using the `yaml` package's `Document` API to preserve comments/formatting on writes). A separate runtime app (`apps/bootstrap`) ensures `DATA_DIR` and its default YAML files exist on container startup. Shared env-var validation and TypeScript config live in `packages/env` and `packages/config`. The task runner across all of this is `vp` (vite-plus) — root `package.json` scripts like `dev`, `build`, `check-types`, `lint` all delegate to it, usually filtered per workspace (`vp run --filter <name> <script>`).

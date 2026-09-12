@@ -34,6 +34,8 @@ let {
 	hue = $bindable<TileHue>("sapphire"),
 	host = $bindable(""),
 	healthCheckUrl = $bindable<string | null>(null),
+	source = $bindable<"external" | "local">("external"),
+	localSlug = $bindable<string | null>(null),
 	ws = $bindable<string>(""),
 	pin = $bindable<string | null>(null),
 	codes = $bindable("200"),
@@ -41,6 +43,7 @@ let {
 	target = $bindable<"frame" | "external">("frame"),
 	proxyHeaders = $bindable(false),
 	proxyAvailable = false,
+	sites = [],
 	workspaces,
 	onsave,
 	oncancel,
@@ -52,6 +55,8 @@ let {
 	hue?: TileHue;
 	host?: string;
 	healthCheckUrl?: string | null;
+	source?: "external" | "local";
+	localSlug?: string | null;
 	ws?: string;
 	pin?: string | null;
 	codes?: string;
@@ -59,6 +64,7 @@ let {
 	target?: "frame" | "external";
 	proxyHeaders?: boolean;
 	proxyAvailable?: boolean;
+	sites?: { slug: string; inUse: boolean }[];
 	workspaces: { id: string; name: string }[];
 	onsave: () => void;
 	oncancel: () => void;
@@ -76,7 +82,7 @@ $effect(() => {
 });
 
 $effect(() => {
-	if (!host && url) {
+	if (source === "external" && !host && url) {
 		try {
 			host = new URL(url).host;
 		} catch {
@@ -84,6 +90,16 @@ $effect(() => {
 		}
 	}
 });
+
+$effect(() => {
+	if (source === "local" && !host && localSlug) {
+		host = localSlug;
+	}
+});
+
+function selectSite(slug: string) {
+	localSlug = slug;
+}
 
 async function probe() {
 	if (!url) return;
@@ -129,21 +145,54 @@ const probeHint = $derived.by(() => {
 
 <p class="form-label">{label}</p>
 <div class="fields">
-	<div>
-		<FieldLabel>Service url</FieldLabel>
-		<Input
-			size="lg"
-			focused
-			bind:value={url}
-			placeholder="https://sonarr.home.lan"
-			suffix={probeResult ? latencySuffix : undefined}
-			data-testid="service-url-input"
-		/>
-		<div class="probe-row">
-			<button type="button" class="probe-btn" data-testid="service-probe-btn" onclick={probe} disabled={!url || probing}>probe</button>
-			{#if probeHint}<span class="hint">{probeHint}</span>{/if}
+	<Toggle
+		bind:on={() => source === "local", (v: boolean) => (source = v ? "local" : "external")}
+		label="Serve a local folder instead of a URL"
+		hint="hosts a folder mounted under DATA_DIR/sites/"
+	/>
+
+	{#if source === "external"}
+		<div>
+			<FieldLabel>Service url</FieldLabel>
+			<Input
+				size="lg"
+				focused
+				bind:value={url}
+				placeholder="https://nas.home.lan"
+				suffix={probeResult ? latencySuffix : undefined}
+				data-testid="service-url-input"
+			/>
+			<div class="probe-row">
+				<button type="button" class="probe-btn" data-testid="service-probe-btn" onclick={probe} disabled={!url || probing}>probe</button>
+				{#if probeHint}<span class="hint">{probeHint}</span>{/if}
+			</div>
 		</div>
-	</div>
+	{:else}
+		<div>
+			<FieldLabel>Local folder</FieldLabel>
+			{#if sites.length === 0}
+				<p class="hint">No folders found under DATA_DIR/sites — mount one and reopen this form.</p>
+			{:else}
+				<div class="badges" role="radiogroup" data-testid="service-site-picker">
+					{#each sites as site (site.slug)}
+						<span
+							data-testid="service-site-toggle"
+							data-slug={site.slug}
+							onclick={() => selectSite(site.slug)}
+							role="radio"
+							aria-checked={localSlug === site.slug}
+							tabindex="0"
+							onkeydown={(e) => e.key === "Enter" && selectSite(site.slug)}
+						>
+							<Badge tone={localSlug === site.slug ? "accent" : "neutral"}>
+								{site.slug}{site.inUse && site.slug !== localSlug ? " · in use" : ""}
+							</Badge>
+						</span>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	{/if}
 
 	{#snippet latencySuffix()}
 		<Latency ms={probeResult?.ms ?? null} withDot size="2xs" />
@@ -223,7 +272,7 @@ const probeHint = $derived.by(() => {
 		hint="auto-set when a probe sees X-Frame-Options"
 	/>
 
-	{#if proxyAvailable}
+	{#if proxyAvailable && source === "external"}
 		<Toggle
 			bind:on={proxyHeaders}
 			label="Route through FLIP's header-stripping proxy"
@@ -239,7 +288,11 @@ const probeHint = $derived.by(() => {
 	</span>
 	<span class="spacer"></span>
 	<Button variant="ghost" onclick={oncancel} data-testid="service-cancel-btn">Cancel</Button>
-	<Button onclick={onsave} disabled={!ws} data-testid="service-save-btn">{label}</Button>
+	<Button
+		onclick={onsave}
+		disabled={!ws || (source === "local" ? !localSlug : !url)}
+		data-testid="service-save-btn">{label}</Button
+	>
 </div>
 
 <style>
