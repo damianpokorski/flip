@@ -3,36 +3,36 @@
    Only one theme exists today — dark. */
 
 :root {
-  /* ── base ramp ── */
-  --ctp-crust: #11111b;
-  --ctp-mantle: #181825;
-  --ctp-base: #1e1e2e;
-  --ctp-surface-0: #313244;
-  --ctp-surface-1: #45475a;
-  --ctp-surface-2: #585b70;
-  --ctp-overlay-0: #6c7086;
-  --ctp-overlay-1: #7f849c;
-  --ctp-overlay-2: #9399b2;
-  --ctp-subtext-0: #a6adc8;
-  --ctp-subtext-1: #bac2de;
-  --ctp-text: #cdd6f4;
+	/* ── base ramp ── */
+	--ctp-crust: #11111b;
+	--ctp-mantle: #181825;
+	--ctp-base: #1e1e2e;
+	--ctp-surface-0: #313244;
+	--ctp-surface-1: #45475a;
+	--ctp-surface-2: #585b70;
+	--ctp-overlay-0: #6c7086;
+	--ctp-overlay-1: #7f849c;
+	--ctp-overlay-2: #9399b2;
+	--ctp-subtext-0: #a6adc8;
+	--ctp-subtext-1: #bac2de;
+	--ctp-text: #cdd6f4;
 
-  /* ── accents ── */
-  --ctp-rosewater: #f5e0dc;
-  --ctp-flamingo: #f2cdcd;
-  --ctp-pink: #f5c2e7;
-  --ctp-mauve: #cba6f7;
-  --ctp-red: #f38ba8;
-  --ctp-peach: #fab387;
-  --ctp-yellow: #f9e2af;
-  --ctp-green: #a6e3a1;
-  --ctp-teal: #94e2d5;
-  --ctp-sky: #89dceb;
-  --ctp-sapphire: #74c7ec;
-  --ctp-blue: #89b4fa;
-  --ctp-lavender: #b4befe;
+	/* ── accents ── */
+	--ctp-rosewater: #f5e0dc;
+	--ctp-flamingo: #f2cdcd;
+	--ctp-pink: #f5c2e7;
+	--ctp-mauve: #cba6f7;
+	--ctp-red: #f38ba8;
+	--ctp-peach: #fab387;
+	--ctp-yellow: #f9e2af;
+	--ctp-green: #a6e3a1;
+	--ctp-teal: #94e2d5;
+	--ctp-sky: #89dceb;
+	--ctp-sapphire: #74c7ec;
+	--ctp-blue: #89b4fa;
+	--ctp-lavender: #b4befe;
 
-  /* ── semantic: surfaces ──
+	/* ── semantic: surfaces ──
 	   Three depths only. The spine is the darkest thing on screen, the embedded
 	   service view sits on the app background, panels sit between them. The HUD
 	   is a fully opaque foreground surface, not a translucent scrim — it fully
@@ -40,79 +40,79 @@
 	   switcher sheet is the one surface that *does* dim through: it sits over a
 	   still-visible Rest screen rather than replacing it, so it gets its own
 	   translucent scrim instead of reusing --bg-hud. */
-  --bg-spine: var(--ctp-crust);
-  --bg-panel: var(--ctp-mantle);
-  --bg-app: var(--ctp-base);
-  --bg-tile: var(--ctp-base);
-  --bg-tile-inset: var(--ctp-crust);
-  --bg-hud: var(--ctp-crust);
-  --bg-scrim: rgba(17, 17, 27, 0.6);
+	--bg-spine: var(--ctp-crust);
+	--bg-panel: var(--ctp-mantle);
+	--bg-app: var(--ctp-base);
+	--bg-tile: var(--ctp-base);
+	--bg-tile-inset: var(--ctp-crust);
+	--bg-hud: var(--ctp-crust);
+	--bg-scrim: rgba(17, 17, 27, 0.6);
 
-  /* ── semantic: hairlines ──
+	/* ── semantic: hairlines ──
 	   Borders are always the text colour at low alpha, never a grey. */
-  --border-hair: rgba(205, 214, 244, 0.07);
-  --border-soft: rgba(205, 214, 244, 0.09);
-  --border-mid: rgba(205, 214, 244, 0.12);
-  --border-strong: rgba(205, 214, 244, 0.18);
-  --border-dashed: rgba(205, 214, 244, 0.16);
+	--border-hair: rgba(205, 214, 244, 0.07);
+	--border-soft: rgba(205, 214, 244, 0.09);
+	--border-mid: rgba(205, 214, 244, 0.12);
+	--border-strong: rgba(205, 214, 244, 0.18);
+	--border-dashed: rgba(205, 214, 244, 0.16);
 
-  /* ── semantic: ink ──
+	/* ── semantic: ink ──
 	   Five steps down from full text to the faintest gutter number. */
-  --text-1: var(--ctp-text);
-  --text-2: var(--ctp-subtext-1);
-  --text-3: var(--ctp-overlay-2);
-  --text-4: var(--ctp-overlay-1);
-  --text-5: var(--ctp-overlay-0);
-  --text-dim: var(--ctp-surface-2);
-  --text-faint: var(--ctp-surface-1);
+	--text-1: var(--ctp-text);
+	--text-2: var(--ctp-subtext-1);
+	--text-3: var(--ctp-overlay-2);
+	--text-4: var(--ctp-overlay-1);
+	--text-5: var(--ctp-overlay-0);
+	--text-dim: var(--ctp-surface-2);
+	--text-faint: var(--ctp-surface-1);
 
-  /* ── semantic: accent ──
+	/* ── semantic: accent ──
 	   Blue means "you are here" or "this is the primary action". It is the only
 	   accent that carries state; every other hue is decorative or diagnostic. */
-  --accent: var(--ctp-blue);
-  --accent-fill: rgba(137, 180, 250, 0.16);
-  --accent-fill-strong: rgba(137, 180, 250, 0.18);
-  --accent-row: rgba(137, 180, 250, 0.14);
-  --accent-row-quiet: rgba(137, 180, 250, 0.1);
-  --accent-line: rgba(137, 180, 250, 0.45);
-  --accent-line-strong: rgba(137, 180, 250, 0.5);
+	--accent: var(--ctp-blue);
+	--accent-fill: rgba(137, 180, 250, 0.16);
+	--accent-fill-strong: rgba(137, 180, 250, 0.18);
+	--accent-row: rgba(137, 180, 250, 0.14);
+	--accent-row-quiet: rgba(137, 180, 250, 0.1);
+	--accent-line: rgba(137, 180, 250, 0.45);
+	--accent-line-strong: rgba(137, 180, 250, 0.5);
 
-  /* Drag-and-drop uses mauve so it can never be confused with selection. */
-  --drag: var(--ctp-mauve);
-  --drag-fill: rgba(203, 166, 247, 0.18);
-  --drag-line: rgba(203, 166, 247, 0.6);
+	/* Drag-and-drop uses mauve so it can never be confused with selection. */
+	--drag: var(--ctp-mauve);
+	--drag-fill: rgba(203, 166, 247, 0.18);
+	--drag-line: rgba(203, 166, 247, 0.6);
 
-  /* ── semantic: health ──
+	/* ── semantic: health ──
 	   Latency buckets. Under 60ms fast, under 250ms ok, above that slow, no
 	   response at all is down. These four are the whole status vocabulary —
 	   kept in sync with packages/store/src/health-bucket.ts's thresholds. */
-  --health-fast: var(--ctp-green);
-  --health-ok: var(--ctp-yellow);
-  --health-slow: var(--ctp-peach);
-  --health-down: var(--ctp-red);
+	--health-fast: var(--ctp-green);
+	--health-ok: var(--ctp-yellow);
+	--health-slow: var(--ctp-peach);
+	--health-down: var(--ctp-red);
 
-  /* ── semantic: service tile hues ──
+	/* ── semantic: service tile hues ──
 	   A service picks one of these for its two-letter tile. Order is the order
 	   offered in the colour picker. Keep in sync with TILE_HUES in
 	   packages/store/src/schemas/service.ts. */
-  --tile-sapphire: var(--ctp-sapphire);
-  --tile-blue: var(--ctp-blue);
-  --tile-mauve: var(--ctp-mauve);
-  --tile-green: var(--ctp-green);
-  --tile-yellow: var(--ctp-yellow);
-  --tile-peach: var(--ctp-peach);
-  --tile-pink: var(--ctp-pink);
-  --tile-teal: var(--ctp-teal);
-  --tile-sky: var(--ctp-sky);
-  --tile-lavender: var(--ctp-lavender);
-  --tile-flamingo: var(--ctp-flamingo);
-  --tile-rosewater: var(--ctp-rosewater);
+	--tile-sapphire: var(--ctp-sapphire);
+	--tile-blue: var(--ctp-blue);
+	--tile-mauve: var(--ctp-mauve);
+	--tile-green: var(--ctp-green);
+	--tile-yellow: var(--ctp-yellow);
+	--tile-peach: var(--ctp-peach);
+	--tile-pink: var(--ctp-pink);
+	--tile-teal: var(--ctp-teal);
+	--tile-sky: var(--ctp-sky);
+	--tile-lavender: var(--ctp-lavender);
+	--tile-flamingo: var(--ctp-flamingo);
+	--tile-rosewater: var(--ctp-rosewater);
 
-  /* ── semantic: YAML syntax (Settings → Config) ── */
-  --code-key-top: var(--ctp-sky);
-  --code-key: var(--ctp-text);
-  --code-value: var(--ctp-yellow);
-  --code-list: var(--ctp-green);
-  --code-inline: var(--ctp-subtext-0);
-  --code-gutter: var(--ctp-surface-1);
+	/* ── semantic: YAML syntax (Settings → Config) ── */
+	--code-key-top: var(--ctp-sky);
+	--code-key: var(--ctp-text);
+	--code-value: var(--ctp-yellow);
+	--code-list: var(--ctp-green);
+	--code-inline: var(--ctp-subtext-0);
+	--code-gutter: var(--ctp-surface-1);
 }

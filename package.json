@@ -1,66 +1,66 @@
 {
-  "name": "flip",
-  "private": true,
-  "license": "MIT",
-  "workspaces": {
-    "packages": [
-      "apps/*",
-      "packages/*"
-    ],
-    "catalog": {
-      "dotenv": "^17.4.2",
-      "zod": "^4.4.3",
-      "typescript": "^6.0.3",
-      "@types/bun": "^1.4.0"
-    }
-  },
-  "type": "module",
-  "scripts": {
-    "dev": "vp run -r --parallel --log labeled dev",
-    "dev:server": "vp run --filter server dev",
-    "dev:web": "vp run --filter web dev",
-    "build": "vp run -r build",
-    "check-types": "vp run -r check-types",
-    "test": "vp run -r test",
-    "test:coverage": "vp run -r test:coverage",
-    "test:e2e": "vp run --filter web test:e2e",
-    "test:e2e:install": "vp run --filter web test:e2e:install",
-    "test:e2e:visual": "vp run --filter web test:e2e:visual",
-    "test:e2e:visual:update": "vp run --filter web test:e2e:visual:update",
-    "docs:screenshots": "vp run --filter web docs:screenshots",
-    "check": "biome check --write .",
-    "lint": "vp lint",
-    "format": "vp fmt",
-    "staged": "vp staged",
-    "hooks:setup": "vp config",
-    "release:dry": "semantic-release --dry-run --no-ci",
-    "bootstrap": "vp run --filter @flip/bootstrap start",
-    "dev:bootstrap": "bun run bootstrap",
-    "dev:kill": "for p in 3000 5173 8080 2019; do (lsof -ti:$p | xargs kill -9) 2>/dev/null; done; echo 'Stopped any FLIP dev processes on :3000 (server) :5173 (web) :8080 (caddy) :2019 (caddy admin)'",
-    "data:reset": "rm -rf data && bun run bootstrap",
-    "docker:stop": "(docker stop flip 2&> /dev/null || echo 'No containers needing stopping') && (docker rm -f flip 2&> /dev/null || echo 'No old containers to remove') ",
-    "docker": "docker buildx build -t flip . && bun run docker:stop && docker run -it --name flip -p 8080:8080 -v flip-data:/data flip"
-  },
-  "dependencies": {
-    "@flip/env": "workspace:*",
-    "dotenv": "catalog:",
-    "zod": "catalog:"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.5.11",
-    "@commitlint/cli": "^21.2.2",
-    "@commitlint/config-conventional": "^21.2.2",
-    "@flip/config": "workspace:*",
-    "@semantic-release/exec": "^7.1.0",
-    "@semantic-release/github": "^12.0.9",
-    "@types/bun": "catalog:",
-    "rolldown": "1.2.6",
-    "semantic-release": "^25.0.9",
-    "typescript": "catalog:",
-    "vite-plus": "0.3.0"
-  },
-  "overrides": {
-    "vite": "npm:@voidzero-dev/vite-plus-core@0.3.0"
-  },
-  "packageManager": "bun@1.3.14"
+	"name": "flip",
+	"private": true,
+	"license": "MIT",
+	"workspaces": {
+		"packages": [
+			"apps/*",
+			"packages/*"
+		],
+		"catalog": {
+			"dotenv": "^17.4.2",
+			"zod": "^4.4.3",
+			"typescript": "^6.0.3",
+			"@types/bun": "^1.4.0"
+		}
+	},
+	"type": "module",
+	"scripts": {
+		"dev": "vp run -r --parallel --log labeled dev",
+		"dev:server": "vp run --filter server dev",
+		"dev:web": "vp run --filter web dev",
+		"build": "vp run -r build",
+		"check-types": "vp run -r check-types",
+		"test": "vp run -r test",
+		"test:coverage": "vp run -r test:coverage",
+		"test:e2e": "vp run --filter web test:e2e",
+		"test:e2e:install": "vp run --filter web test:e2e:install",
+		"test:e2e:visual": "vp run --filter web test:e2e:visual",
+		"test:e2e:visual:update": "vp run --filter web test:e2e:visual:update",
+		"docs:screenshots": "vp run --filter web docs:screenshots",
+		"check": "biome check --write .",
+		"lint": "biome ci .",
+		"format": "biome format --write .",
+		"staged": "biome check --write --staged",
+		"hooks:setup": "vp config",
+		"release:dry": "semantic-release --dry-run --no-ci",
+		"bootstrap": "vp run --filter @flip/bootstrap start",
+		"dev:bootstrap": "bun run bootstrap",
+		"dev:kill": "for p in 3000 5173 8080 2019; do (lsof -ti:$p | xargs kill -9) 2>/dev/null; done; echo 'Stopped any FLIP dev processes on :3000 (server) :5173 (web) :8080 (caddy) :2019 (caddy admin)'",
+		"data:reset": "rm -rf data && bun run bootstrap",
+		"docker:stop": "(docker stop flip 2&> /dev/null || echo 'No containers needing stopping') && (docker rm -f flip 2&> /dev/null || echo 'No old containers to remove') ",
+		"docker": "docker buildx build -t flip . && bun run docker:stop && docker run -it --name flip -p 8080:8080 -v flip-data:/data flip"
+	},
+	"dependencies": {
+		"@flip/env": "workspace:*",
+		"dotenv": "catalog:",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.11",
+		"@commitlint/cli": "^21.2.2",
+		"@commitlint/config-conventional": "^21.2.2",
+		"@flip/config": "workspace:*",
+		"@semantic-release/exec": "^7.1.0",
+		"@semantic-release/github": "^12.0.9",
+		"@types/bun": "catalog:",
+		"rolldown": "1.2.6",
+		"semantic-release": "^25.0.9",
+		"typescript": "catalog:",
+		"vite-plus": "0.3.0"
+	},
+	"overrides": {
+		"vite": "npm:@voidzero-dev/vite-plus-core@0.3.0"
+	},
+	"packageManager": "bun@1.3.14"
 }

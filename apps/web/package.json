@@ -1,42 +1,42 @@
 {
-  "name": "web",
-  "version": "0.0.1",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vp dev",
-    "build": "vp build",
-    "preview": "vp preview",
-    "prepare": "svelte-kit sync || echo ''",
-    "check-types": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "test:e2e:install": "playwright install chromium",
-    "test:e2e": "playwright test",
-    "test:e2e:visual": "playwright test visual",
-    "test:e2e:visual:update": "playwright test visual --update-snapshots",
-    "docs:screenshots": "playwright test --config=playwright.showcase.config.ts"
-  },
-  "dependencies": {
-    "@elysia/eden": "^1.4.10",
-    "@flip/env": "workspace:*",
-    "@flip/store": "workspace:*",
-    "@fontsource/fira-code": "^5.3.0",
-    "@fontsource/oswald": "^5.3.0",
-    "dotenv": "catalog:",
-    "server": "workspace:*",
-    "svelte-dnd-action": "^0.9.79",
-    "zod": "catalog:"
-  },
-  "devDependencies": {
-    "@flip/config": "workspace:*",
-    "@playwright/test": "^1.63.0",
-    "@sveltejs/adapter-static": "^3.0.10",
-    "@sveltejs/kit": "^2.70.1",
-    "@sveltejs/vite-plugin-svelte": "^7.2.0",
-    "svelte": "^5.56.8",
-    "svelte-check": "^4.7.4",
-    "typescript": "catalog:",
-    "vite": "^8.1.5"
-  }
+	"name": "web",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vp dev",
+		"build": "vp build",
+		"preview": "vp preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"check-types": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"test:e2e:install": "playwright install chromium",
+		"test:e2e": "playwright test",
+		"test:e2e:visual": "playwright test visual",
+		"test:e2e:visual:update": "playwright test visual --update-snapshots",
+		"docs:screenshots": "playwright test --config=playwright.showcase.config.ts"
+	},
+	"dependencies": {
+		"@elysia/eden": "^1.4.10",
+		"@flip/env": "workspace:*",
+		"@flip/store": "workspace:*",
+		"@fontsource/fira-code": "^5.3.0",
+		"@fontsource/oswald": "^5.3.0",
+		"dotenv": "catalog:",
+		"server": "workspace:*",
+		"svelte-dnd-action": "^0.9.79",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@flip/config": "workspace:*",
+		"@playwright/test": "^1.63.0",
+		"@sveltejs/adapter-static": "^3.0.10",
+		"@sveltejs/kit": "^2.70.1",
+		"@sveltejs/vite-plugin-svelte": "^7.2.0",
+		"svelte": "^5.56.8",
+		"svelte-check": "^4.7.4",
+		"typescript": "catalog:",
+		"vite": "^8.1.5"
+	}
 }

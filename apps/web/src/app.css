@@ -17,33 +17,33 @@
 @import "./styles/tokens/motion.css";
 
 * {
-  box-sizing: border-box;
+	box-sizing: border-box;
 }
 
 html,
 body {
-  height: 100%;
-  margin: 0;
+	height: 100%;
+	margin: 0;
 }
 
 body {
-  background: var(--bg-app);
-  color: var(--text-1);
-  font-family: var(--font-display);
-  scrollbar-color: var(--border-strong) var(--bg-spine);
+	background: var(--bg-app);
+	color: var(--text-1);
+	font-family: var(--font-display);
+	scrollbar-color: var(--border-strong) var(--bg-spine);
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+	width: 8px;
+	height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg-spine);
+	background: var(--bg-spine);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: var(--r-sm);
+	background: var(--border-strong);
+	border-radius: var(--r-sm);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-5);
+	background: var(--text-5);
 }

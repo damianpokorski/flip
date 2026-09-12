@@ -58,7 +58,10 @@ flip/
 | `bun run dev`                    | Start web and server in development mode                       |
 | `bun run build`                  | Build all apps                                                 |
 | `bun run data:reset`             | Wipe the local data directory and recreate it with defaults    |
-| `bun run check`                  | Run Biome lint + format checks                                 |
+| `bun run check`                  | Run Biome lint + format checks, applying fixes                 |
+| `bun run lint`                   | Run Biome lint + format checks without writing (used by CI)    |
+| `bun run format`                 | Run Biome's formatter only, applying fixes                     |
+| `bun run staged`                 | Run Biome against staged files only, applying fixes            |
 | `bun run check-types`            | TypeScript type-check across all packages                      |
 | `bun run test`                   | Run server unit tests                                          |
 | `bun run test:coverage`          | Run server unit tests with coverage reporting                  |

@@ -1,4 +1,4 @@
-vp staged || exit 1
+bun run staged || exit 1
 
 if git diff --cached --name-only | grep -qE '^(apps/web/|packages/)'; then
 	echo "UI-relevant files staged — running visual regression check..."

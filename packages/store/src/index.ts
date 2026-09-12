@@ -23,10 +23,10 @@ import { workspacesStore } from "./workspaces";
 // production startup step) and apps/server (a boot-time safety net for local dev), so both
 // environments are guaranteed to end up with the same data files.
 export async function initDataFiles(): Promise<void> {
-  await servicesStore.ensureExists();
-  await workspacesStore.ensureExists();
-  await configStore.ensureExists();
-  // Not a YAML "file" like the above — just makes DATA_DIR/sites/ exist so it's ready as a
-  // volume-mount target for locally-hosted static sites from the very first boot.
-  await mkdir(sitesDir(), { recursive: true });
+	await servicesStore.ensureExists();
+	await workspacesStore.ensureExists();
+	await configStore.ensureExists();
+	// Not a YAML "file" like the above — just makes DATA_DIR/sites/ exist so it's ready as a
+	// volume-mount target for locally-hosted static sites from the very first boot.
+	await mkdir(sitesDir(), { recursive: true });
 }
