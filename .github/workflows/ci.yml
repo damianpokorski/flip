@@ -17,22 +17,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      # Pinned explicitly to match mise.toml / Dockerfile — packageManager in package.json
-      # is a secondary source of truth only, not read here directly.
+      # mise.toml is the single source of truth for these versions — read them here so
+      # this workflow can't drift from it (package.json's packageManager field and the
+      # Dockerfile's oven/bun pins can't read TOML directly, so those two stay manually
+      # pinned and are cross-checked against mise.toml by the "Check version pins" step
+      # below instead).
+      - name: Read tool versions from mise.toml
+        id: mise
+        run: |
+          echo "bun=$(scripts/mise-tool-version.sh bun)" >> "$GITHUB_OUTPUT"
+          echo "caddy=$(scripts/mise-tool-version.sh caddy)" >> "$GITHUB_OUTPUT"
+
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: "1.3.14"
+          bun-version: ${{ steps.mise.outputs.bun }}
 
-      # Pinned explicitly to match mise.toml / Dockerfile's caddy:2 image — CaddyProxyService
-      # is always spawned by apps/server, in dev too, so it must be on PATH before the e2e
-      # step's webServer boots the real dev servers (not just a Docker/production concern).
+      # CaddyProxyService is always spawned by apps/server, in dev too, so it must be on
+      # PATH before the e2e step's webServer boots the real dev servers (not just a
+      # Docker/production concern).
       - name: Set up Caddy
         run: |
-          curl -sSL "https://github.com/caddyserver/caddy/releases/download/v2.11.4/caddy_2.11.4_linux_amd64.tar.gz" \
+          curl -sSL "https://github.com/caddyserver/caddy/releases/download/v${{ steps.mise.outputs.caddy }}/caddy_${{ steps.mise.outputs.caddy }}_linux_amd64.tar.gz" \
             | tar -xz caddy
           sudo mv caddy /usr/local/bin/caddy
           caddy version
+
+      - name: Check version pins
+        run: bun run check-versions
 
       - name: Cache Bun install cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0

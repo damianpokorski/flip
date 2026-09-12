@@ -1,3 +1,8 @@
+# Single source of truth for these tool versions. Read dynamically in CI by
+# scripts/mise-tool-version.sh (ci.yml/release.yml); package.json's `packageManager`
+# field and the Dockerfile's `oven/bun:` pins can't read TOML directly, so they stay
+# manually pinned and are instead cross-checked against this file by
+# scripts/check-tool-versions.sh (`bun run check-versions`).
 [tools]
 bun = "1.3.14"
 # Embedded reverse proxy (apps/server/src/services/CaddyProxyService.ts) — always spawned by

@@ -21,6 +21,7 @@
 		"dev:web": "vp run --filter web dev",
 		"build": "vp run -r build",
 		"check-types": "vp run -r check-types",
+		"check-versions": "bash scripts/check-tool-versions.sh",
 		"test": "vp run -r test",
 		"test:coverage": "vp run -r test:coverage",
 		"test:e2e": "vp run --filter web test:e2e",

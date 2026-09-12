@@ -8,7 +8,35 @@
 			"Bash(xargs -r kill)",
 			"Bash(bun --version)",
 			"Bash(mise --version)",
-			"Bash(mise ls *)"
+			"Bash(mise ls *)",
+			"Skill(update-config)",
+			"Skill(update-config:*)"
+		],
+		"deny": [
+			"Bash(git commit *)",
+			"Bash(git push *)",
+			"Bash(gh pr create *)",
+			"Bash(gh pr merge *)",
+			"Bash(gh pr close *)",
+			"Bash(gh pr reopen *)",
+			"Bash(gh pr edit *)",
+			"Bash(gh pr ready *)",
+			"Bash(gh issue create *)",
+			"Bash(gh issue close *)",
+			"Bash(gh issue reopen *)",
+			"Bash(gh issue edit *)",
+			"Bash(gh release create *)",
+			"Bash(gh release edit *)",
+			"Bash(gh release delete *)",
+			"Bash(gh release delete-asset *)",
+			"Bash(gh release upload *)",
+			"Bash(gh repo delete *)",
+			"Bash(gh repo edit *)",
+			"Bash(gh repo archive *)",
+			"Bash(gh repo rename *)",
+			"Bash(gh workflow run *)",
+			"Bash(gh workflow enable *)",
+			"Bash(gh workflow disable *)"
 		]
 	}
 }
