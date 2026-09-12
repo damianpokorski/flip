@@ -1,3 +1,7 @@
 {
-	"recommendations": ["svelte.svelte-vscode", "redhat.vscode-yaml"]
+  "recommendations": [
+    "svelte.svelte-vscode",
+    "redhat.vscode-yaml",
+    "ms-azuretools.vscode-containers"
+  ]
 }

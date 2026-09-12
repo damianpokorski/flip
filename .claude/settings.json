@@ -1,0 +1,14 @@
+{
+	"permissions": {
+		"allow": [
+			"Bash(bun test *)",
+			"Bash(bun run *)",
+			"Bash(bunx biome *)",
+			"Bash(lsof -ti:8080,3000,5173,2019 -sTCP:LISTEN)",
+			"Bash(xargs -r kill)",
+			"Bash(bun --version)",
+			"Bash(mise --version)",
+			"Bash(mise ls *)"
+		]
+	}
+}
