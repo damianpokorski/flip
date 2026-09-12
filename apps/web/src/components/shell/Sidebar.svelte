@@ -48,10 +48,6 @@ const services = $derived(appState.servicesInActiveWorkspace);
 		padding: var(--sp-9) var(--sp-8);
 		overflow: hidden;
 		box-sizing: border-box;
-		transition:
-			width var(--dur-sheet) var(--ease-out),
-			border-right-width var(--dur-sheet) var(--ease-out),
-			padding var(--dur-sheet) var(--ease-out);
 	}
 	.sidebar.collapsed {
 		width: 0;
@@ -67,7 +63,6 @@ const services = $derived(appState.servicesInActiveWorkspace);
 		gap: var(--sp-2);
 		min-height: 0;
 		opacity: 1;
-		transition: opacity calc(var(--dur-sheet) * 0.5) var(--ease-out);
 	}
 	.sidebar.collapsed .content {
 		opacity: 0;
