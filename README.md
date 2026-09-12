@@ -35,12 +35,12 @@
 Versioned images are published to GHCR on every release — no build step required:
 
 ```bash
-docker run -d --name flip -p 8080:8080 -v flip-data:/data ghcr.io/damianpokorski/flip:latest
+docker run -d --name flip -p 80:80 -v flip-data:/data ghcr.io/damianpokorski/flip:latest
 ```
 
 Pin a specific version (e.g. `ghcr.io/damianpokorski/flip:1.4.0`) instead of `latest` if you want reproducible upgrades — see [Releases](https://github.com/damianpokorski/flip/releases) for the changelog.
 
-The data directory (`services.yaml`, `workspaces.yaml`, `config.yaml`, and an empty `sites/` folder ready for [locally-hosted static sites](#hosting-local-static-sites), all inside the `flip-data` volume) is created automatically on first boot, with one example service and one workspace — no separate setup step needed. FLIP is reachable at a single address, `http://localhost:8080`; everything — the web UI, the API, and per-service subdomains if you configure them — is served through FLIP's own embedded proxy, so there's nothing else to expose.
+The data directory (`services.yaml`, `workspaces.yaml`, `config.yaml`, and an empty `sites/` folder ready for [locally-hosted static sites](#hosting-local-static-sites), all inside the `flip-data` volume) is created automatically on first boot, with one example service and one workspace — no separate setup step needed. FLIP is reachable at a single address, `http://localhost`; everything — the web UI, the API, and per-service subdomains if you configure them — is served through FLIP's own embedded proxy, so there's nothing else to expose.
 
 If container logs show Caddy failing to bind its admin API (`listen tcp 127.0.0.1:2019: bind: address already in use` — most likely if you're running more than one FLIP container on the same network namespace), set the `CADDY_ADMIN_PORT` environment variable to a free port.
 
@@ -65,7 +65,7 @@ flowchart LR
     end
 
     subgraph flip["FLIP container"]
-        EmbProxy["Embedded proxy\n:8080\nsole entrypoint"]
+        EmbProxy["Embedded proxy\n:80\nsole entrypoint"]
         Server["FLIP server\n:3000 — internal only\nweb UI + API"]
         EmbProxy -- "root / unmatched host" --> Server
     end
@@ -73,12 +73,12 @@ flowchart LR
     SvcBlocked["Some service\n(blocks iframing)"]
 
     Browser -- "https://flip.example.com" --> ExtProxy
-    ExtProxy -- "HTTP :8080" --> EmbProxy
-    Browser -- "iframe src: svc.flip.home.lan:8080" --> EmbProxy
+    ExtProxy -- "HTTP :80" --> EmbProxy
+    Browser -- "iframe src: svc.flip.home.lan:80" --> EmbProxy
     EmbProxy -- "reverse proxy, header-stripped" --> SvcBlocked
 ```
 
-Root/unmatched-host traffic (the main UI and `/api/*`) always routes through the embedded proxy. Per-service subdomains (`PROXY_PORT`/`PROXY_DOMAIN`, see [Embedding services that block iframing](#embedding-services-that-block-iframing)) share the same published port, routed by hostname.
+Root/unmatched-host traffic (the main UI and `/api/*`) always routes through the embedded proxy. Per-service subdomains (`PROXY_DOMAIN`, see [Embedding services that block iframing](#embedding-services-that-block-iframing)) share the same fixed published port (80), routed by hostname.
 
 ### Example: docker-compose + an external Caddy for TLS
 
@@ -91,14 +91,12 @@ services:
     image: ghcr.io/damianpokorski/flip:latest # or a pinned version
     restart: unless-stopped
     expose:
-      - "8080"
-    # environment:
-    #   PROXY_DOMAIN: flip.home.lan   # optional — only needed for the per-service subdomain proxy
+      - "80"
+    environment:
+      # optional — only needed for the per-service subdomain proxy
+      PROXY_DOMAIN: flip.home.lan
     volumes:
-      - flip-data:/data
-      # optional — mount a folder as a local static site (see "Hosting local
-      # static sites" below); the host path (left of the colon) can be anything you like, the
-      # container path must be DATA_DIR/sites/<slug>
+      - ./flip-data:/data
       - ./my-page:/data/sites/my-page
 
   caddy:
@@ -111,23 +109,21 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy-config:/config
       - caddy-data:/data
-      - caddy-config:/config
 
 volumes:
-  flip-data:
   caddy-data:
-  caddy-config:
 ```
 
 ```
 # Caddyfile
 flip.example.com {
-	reverse_proxy flip:8080
+	reverse_proxy flip:80
 }
 ```
 
-`flip` doesn't publish any port to the host at all here — only `expose`s `8080` on the compose network, since the external `caddy` service is the only thing meant to reach it. If you also enable the per-service subdomain proxy (`PROXY_DOMAIN`, above), its wildcard DNS record should point at the host running the external `caddy` service (not `flip` directly), since that's now the only publicly reachable port. And since `caddy` is terminating HTTPS for FLIP's own origin here, embedding a plain-HTTP per-service target will hit the browser's mixed-content block, per the "Plain HTTP only" note below — the two features can coexist, but only for services you're fine reaching over plain HTTP.
+`flip` doesn't publish any port to the host at all here — only `expose`s `80` on the compose network, since the external `caddy` service is the only thing meant to reach it. If you also enable the per-service subdomain proxy (`PROXY_DOMAIN`, above), its wildcard DNS record should point at the host running the external `caddy` service (not `flip` directly), since that's now the only publicly reachable port. And since `caddy` is terminating HTTPS for FLIP's own origin here, embedding a plain-HTTP per-service target will hit the browser's mixed-content block, per the "Plain HTTP only" note below — the two features can coexist, but only for services you're fine reaching over plain HTTP.
 
 ---
 
@@ -136,8 +132,8 @@ flip.example.com {
 Some self-hosted apps send `X-Frame-Options`/`Content-Security-Policy` response headers that refuse to be put in an iframe at all — the usual workaround is running a separate reverse proxy in front of that one app just to strip those headers. FLIP can do this itself instead, via a bundled Caddy process, one per-service toggle at a time:
 
 1. Set `PROXY_DOMAIN` (e.g. `flip.home.lan`) on the FLIP container, and create a **one-time wildcard DNS record** — `*.flip.home.lan` → the container's IP — on whatever DNS server your LAN already uses. This is the only network setup step; no per-app configuration is needed afterward.
-2. Nothing extra to map — FLIP's single published port (`PROXY_PORT`, defaults to `8080`) already carries this traffic too: `docker run ... -p 8080:8080 -e PROXY_DOMAIN=flip.home.lan flip`.
-3. On the service that refuses to embed, toggle **"Route through FLIP's header-stripping proxy"** in Settings → Services (add-service probing suggests this automatically when it detects the service isn't embeddable). FLIP now loads that service's iframe from `http://<service-id>.flip.home.lan:8080/` instead of its real URL — Caddy reverse-proxies to the real service behind the scenes, stripping the headers that were blocking it.
+2. Nothing extra to map — FLIP's single published port (always `80` in the container) already carries this traffic too: `docker run ... -p 80:80 -e PROXY_DOMAIN=flip.home.lan flip`.
+3. On the service that refuses to embed, toggle **"Route through FLIP's header-stripping proxy"** in Settings → Services (add-service probing suggests this automatically when it detects the service isn't embeddable). FLIP now loads that service's iframe from `http://<service-id>.flip.home.lan/` instead of its real URL — Caddy reverse-proxies to the real service behind the scenes, stripping the headers that were blocking it.
 
 **Plain HTTP only** — the embedded proxy doesn't terminate TLS. If FLIP's own origin is served over HTTPS by an external front-proxy, embedding a plain-HTTP iframe target will hit the browser's mixed-content block; this setup is intended for LAN-only/plain-HTTP deployments.
 
@@ -159,7 +155,7 @@ There's no upload form by design — mount or drop files in directly, the same w
 
 ### 1. Add your services
 
-Open `http://localhost:8080/settings/services/add` (or click **+ Add service** from `Settings → Services`).
+Open `http://localhost/settings/services/add` (or click **+ Add service** from `Settings → Services`).
 
 - Paste a URL — FLIP probes it for reachability, page title, and iframe-embeddability, and pre-fills a suggested name and "open externally" setting accordingly.
 - Pick a name, a 2-letter tile mark, and a tile colour.
@@ -172,7 +168,7 @@ Open `http://localhost:8080/settings/services/add` (or click **+ Add service** f
 
 ### 3. Switch between services
 
-Navigate to `http://localhost:8080`. The **spine** (far left) switches workspaces; the **sidebar** lists the current workspace's services — click one to bring it to the front. Every embeddable service's iframe is already loaded in the background, so switching is instant.
+Navigate to `http://localhost`. The **spine** (far left) switches workspaces; the **sidebar** lists the current workspace's services — click one to bring it to the front. Every embeddable service's iframe is already loaded in the background, so switching is instant.
 
 Press **`` ` ``** anywhere to raise the HUD: a full-screen tile grid of the current workspace (or, once you start typing, every service across every workspace). Arrow keys move, Enter opens, Escape or pressing `` ` `` again dismisses.
 

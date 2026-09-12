@@ -1,0 +1,85 @@
+{
+  "remote.SSH.useLocalServer": false,
+  // Global VS Settings
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "files.associations": {
+    "*.tsx": "typescriptreact"
+  },
+  // Per project
+  "search.useIgnoreFiles": true,
+  // Heavily opinionated vscode settings to enforce consistency
+  // Enforce biome formatting
+  "editor.defaultFormatter": "biomejs.biome",
+  "editor.formatOnSave": true,
+  "editor.formatOnSaveMode": "file",
+  // Indent config, 2 spaces
+  "editor.indentSize": "tabSize",
+  "editor.tabSize": 2,
+  "editor.detectIndentation": false,
+  "editor.autoIndent": "advanced",
+  "editor.insertSpaces": true,
+  "editor.rulers": [
+    120
+  ],
+  // No sideways scrolling
+  "editor.wordWrap": "on",
+  // Show gitignored files from explorer
+  "explorer.excludeGitIgnore": false,
+  // Inlay type hints -
+  "editor.inlayHints.enabled": "on",
+  "js/ts.inlayHints.enumMemberValues.enabled": false,
+  "js/ts.inlayHints.parameterNames.enabled": "none",
+  "js/ts.inlayHints.functionLikeReturnTypes.enabled": false,
+  "js/ts.inlayHints.variableTypes.enabled": false,
+  "js/ts.inlayHints.parameterTypes.enabled": false,
+  "js/ts.inlayHints.propertyDeclarationTypes.enabled": false,
+  // Prefer barrel imports oven relative
+  "js/ts.preferences.importModuleSpecifierEnding": "auto",
+  "js/ts.preferences.importModuleSpecifier": "non-relative",
+  // Fix all and organise imports, remove unused
+  "editor.codeActionsOnSave": {
+    "source.fixAll.biome": "always",
+    "source.organizeImports.biome": "always",
+    "source.removeUnusedImports": "always"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.codeActionsOnSave": {
+      "source.addMissingImports.ts": "always",
+      "source.biome": "always",
+      "source.fixAll.biome": "always",
+      "source.removeUnused.ts": "always",
+      "source.sortImports": "always"
+    }
+  },
+  "editor.fontFamily": "'FiraCode Nerd Font', 'monospace', monospace",
+  "workbench.secondarySideBar.defaultVisibility": "hidden",
+  "chat.agent.thinking.generateTitles": false,
+  "chat.checkpoints.enabled": false,
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "json.schemaDownload.trustedDomains": {
+    "https://schemastore.azurewebsites.net/": true,
+    "https://raw.githubusercontent.com/": true,
+    "https://www.schemastore.org/": true,
+    "https://json.schemastore.org/": true,
+    "https://json-schema.org/": true,
+    "https://biomejs.dev": true
+  },
+  "workbench.editor.showTabs": "multiple",
+  "chat.viewSessions.orientation": "stacked",
+  "explorer.confirmDragAndDrop": false,
+  "[html]": {
+    "editor.defaultFormatter": "vscode.html-language-features"
+  },
+  "[svelte]": {
+    "editor.defaultFormatter": "svelte.svelte-vscode"
+  },
+  "svelte.enable-ts-plugin": true,
+}

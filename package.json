@@ -40,7 +40,7 @@
 		"dev:kill": "for p in 3000 5173 8080 2019; do (lsof -ti:$p | xargs kill -9) 2>/dev/null; done; echo 'Stopped any FLIP dev processes on :3000 (server) :5173 (web) :8080 (caddy) :2019 (caddy admin)'",
 		"data:reset": "rm -rf data && bun run bootstrap",
 		"docker:stop": "(docker stop flip 2&> /dev/null || echo 'No containers needing stopping') && (docker rm -f flip 2&> /dev/null || echo 'No old containers to remove') ",
-		"docker": "docker buildx build -t flip . && bun run docker:stop && docker run -it --name flip -p 8080:8080 -v flip-data:/data flip"
+		"docker": "docker buildx build -t flip . && bun run docker:stop && docker run -it --name flip -p 80:80 -v flip-data:/data flip"
 	},
 	"dependencies": {
 		"@flip/env": "workspace:*",

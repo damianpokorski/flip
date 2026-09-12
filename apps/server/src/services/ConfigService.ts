@@ -1,5 +1,6 @@
 import { env } from "@flip/env/server";
 import type { ConfigRepository } from "../db/ConfigRepository";
+import { resolveProxyPort } from "./CaddyProxyService";
 
 export class ConfigService {
 	constructor(private readonly repo: ConfigRepository) {}
@@ -9,7 +10,9 @@ export class ConfigService {
 		return {
 			...config,
 			proxyDomain: env.PROXY_DOMAIN ?? null,
-			proxyPort: env.PROXY_PORT,
+			proxyPort: resolveProxyPort(
+				env.NODE_ENV === "production" ? "prod" : "dev",
+			),
 		};
 	}
 

@@ -70,11 +70,9 @@ ENV PUBLIC_DIR=/app/public
 # Bun/Elysia's own port — internal-only (loopback-bound, see apps/server/src/index.ts), never
 # published. Caddy is the only thing that talks to it.
 ENV PORT=3000
-# The single externally-published port — Caddy listens here for all traffic: FLIP's own
-# UI/API (proxied through to PORT) and, once PROXY_DOMAIN is also set, per-service subdomains.
-ENV PROXY_PORT=8080
-
-EXPOSE 8080
+# Caddy's published port is fixed at 80 in production (see CaddyProxyService.resolveProxyPort)
+# — not an env var, so remap the host side with `-p HOST:80` instead of configuring this image.
+EXPOSE 80
 
 # Persist the YAML data files across container restarts
 VOLUME /data
@@ -82,7 +80,7 @@ VOLUME /data
 # Hits the published port so container health reflects the real entrypoint (Caddy) rather than
 # bypassing it — Bun's own fetch is used rather than curl since it's guaranteed present in this
 # image (it's the container's own runtime) without needing an extra apt-get install.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD bun -e "fetch('http://localhost:8080/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD bun -e "fetch('http://localhost:80/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
 
 # `exec` replaces the shell with the Bun process (PID 1), so it actually receives SIGTERM

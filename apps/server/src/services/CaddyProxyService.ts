@@ -10,6 +10,16 @@ const BOOTSTRAP_CONFIG_PATH = path.join(
 // Matches Vite/SvelteKit's own default dev-server port — never configured elsewhere in the
 // repo, so not worth promoting to an env var just for this.
 const VITE_DEV_PORT = 5173;
+// Caddy's own published port — fixed by mode, not configurable. Prod is hardcoded to 80 so
+// there's a single, unambiguous entry point (Docker users remap the host side via
+// `-p HOST:80` if they need a different external port). Dev stays on 8080 since binding 80
+// requires root/elevated privileges on Linux, which local dev has no mechanism to grant.
+const PROD_PROXY_PORT = 80;
+const DEV_PROXY_PORT = 8080;
+
+export function resolveProxyPort(mode: "dev" | "prod"): number {
+	return mode === "prod" ? PROD_PROXY_PORT : DEV_PROXY_PORT;
+}
 
 export interface BuildCaddyfileOptions {
 	services: Service[];
@@ -44,9 +54,20 @@ export function buildCaddyfile({
 	// would silently proxy traffic to the wrong process instead of failing loudly. Vite's own
 	// bind address isn't controlled here (and has been observed IPv6-only in some setups), so
 	// its target is left as "localhost" to follow whatever it actually resolves to.
+	// http:// is load-bearing, not decorative: a bare "host:port" address is ambiguous to
+	// Caddy's Caddyfile adapter, which responds by attaching a stub TLS connection policy to
+	// the whole shared server "just in case" — even under the global auto_https off below,
+	// which only suppresses automatic *certificate* management, not this policy attachment.
+	// That stub alone makes Caddy wrap the entire port-8080 listener in TLS, breaking every
+	// site sharing it (root included) the instant any one of them has a bare hostname:port
+	// address. An explicit http:// scheme tells the adapter this address is unambiguously
+	// plain HTTP, so it never contributes a TLS policy in the first place. Confirmed via
+	// Caddy's own admin API (GET /config/): a bare per-service address produced
+	// "tls_connection_policies":[{}] on srv0 and broke root-domain requests with "Client sent
+	// an HTTP request to an HTTPS server" even though automatic_https.disable was true.
 	const rootBlock =
 		mode === "dev"
-			? `:${proxyPort} {
+			? `http://:${proxyPort} {
 	handle /api/* {
 		reverse_proxy 127.0.0.1:${appPort}
 	}
@@ -54,7 +75,7 @@ export function buildCaddyfile({
 		reverse_proxy localhost:${VITE_DEV_PORT}
 	}
 }`
-			: `:${proxyPort} {
+			: `http://:${proxyPort} {
 	reverse_proxy 127.0.0.1:${appPort}
 }`;
 
@@ -68,8 +89,17 @@ export function buildCaddyfile({
 					const upstream = new URL(service.url).origin;
 					// header_down is a reverse_proxy sub-directive, not a standalone one — it
 					// has to be nested inside reverse_proxy's own block to be recognized.
-					return `${service.id}.${domain}:${proxyPort} {
+					// header_up Host rewrites the outbound Host header to the real upstream's own
+					// host:port instead of leaving FLIP's proxy-facing hostname on it (Caddy's
+					// reverse_proxy default is to preserve whatever Host the client sent). Without
+					// this, any downstream infrastructure that also routes by Host header — e.g. a
+					// LAN-wide reverse proxy fronting the real service too — sees FLIP's own
+					// subdomain instead of the service's real one and can bounce the request right
+					// back to FLIP, looping forever (confirmed: request/Via headers grew unbounded
+					// until Caddy dropped the connection with EOF).
+					return `http://${service.id}.${domain}:${proxyPort} {
 	reverse_proxy ${upstream} {
+		header_up Host {http.reverse_proxy.upstream.hostport}
 		header_down -X-Frame-Options
 		header_down Content-Security-Policy "frame-ancestors[^;]*;?\\s*" ""
 	}
@@ -85,6 +115,7 @@ export function buildCaddyfile({
 	return `{
 	admin localhost:${adminPort}
 	auto_https off
+	log stdout
 	servers {
 		protocols h1
 	}
@@ -149,11 +180,12 @@ export class CaddyProxyService {
 	}
 
 	async reload(services: Service[]): Promise<boolean> {
+		const mode = this.mode();
 		const caddyfile = buildCaddyfile({
 			services,
-			mode: this.mode(),
+			mode,
 			appPort: env.PORT,
-			proxyPort: env.PROXY_PORT,
+			proxyPort: resolveProxyPort(mode),
 			domain: env.PROXY_DOMAIN,
 			adminPort: env.CADDY_ADMIN_PORT,
 		});

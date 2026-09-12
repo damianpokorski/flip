@@ -27,16 +27,14 @@ export const env = createEnv({
 		HEALTH_CHECK_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
 		// Base domain for FLIP's embedded per-service header-stripping proxy, e.g.
 		// "flip.home.lan" — a service with `proxyHeaders: true` is addressed at
-		// "<id>.<PROXY_DOMAIN>:<PROXY_PORT>". Requires a one-time wildcard DNS record
-		// (*.flip.home.lan -> this host) as manual network setup — see README. Unset (the
-		// default) disables only this per-service subdomain feature — the embedded Caddy
-		// proxy itself always runs regardless of this variable, since it's also the sole
-		// entrypoint for FLIP's own UI/API traffic (root/unmatched requests -> PORT).
+		// "<id>.<PROXY_DOMAIN>:<port>", where <port> is Caddy's fixed published port (80 in
+		// production, 8080 in dev — see CaddyProxyService.resolveProxyPort; not an env var).
+		// Requires a one-time wildcard DNS record (*.flip.home.lan -> this host) as manual
+		// network setup — see README. Unset (the default) disables only this per-service
+		// subdomain feature — the embedded Caddy proxy itself always runs regardless of this
+		// variable, since it's also the sole entrypoint for FLIP's own UI/API traffic
+		// (root/unmatched requests -> PORT).
 		PROXY_DOMAIN: z.string().optional(),
-		// The single externally-published port Caddy listens on for ALL traffic — FLIP's own
-		// UI/API (proxied through to PORT) as well as, when PROXY_DOMAIN is set, per-service
-		// subdomains.
-		PROXY_PORT: z.coerce.number().int().positive().default(8080),
 		// Caddy's own admin API — always loopback-only, never published/exposed regardless of
 		// this value. Configurable (rather than truly hardcoded) purely so a machine that
 		// already has something else bound to the default 2019 (a real thing that happens —
