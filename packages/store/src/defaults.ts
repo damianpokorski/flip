@@ -20,6 +20,7 @@ export const DEFAULT_SERVICES_YAML = `# FLIP services — each entry is one embe
 #   proxyHeaders      true to route through FLIP's built-in header-stripping proxy (needs
 #                     PROXY_DOMAIN set) — for services that refuse to be iframed otherwise
 #   hidden            set true to hide from the switcher/HUD without deleting
+#   lazyLoad          true to skip background preloading — only loads once opened
 #   position          display order, lower first
 #
 # Feel free to hand-edit this file directly — FLIP picks up changes live, and any
@@ -40,6 +41,7 @@ export const DEFAULT_SERVICES_YAML = `# FLIP services — each entry is one embe
   target: frame
   proxyHeaders: false
   hidden: false
+  lazyLoad: false
   position: 0
 `;
 
@@ -59,8 +61,11 @@ export const DEFAULT_WORKSPACES_YAML = `# FLIP workspaces — groups of services
 export const DEFAULT_CONFIG_YAML = `# FLIP global configuration.
 #
 #   healthCheckTimeoutMs   how long to wait for a health check before marking a service down
+#   maxParallelFrameLoads  how many service iframes may load in the background at once — the
+#                          rest queue and load as slots free up, instead of all firing at once
 #
 # There is no per-install default check interval — each service sets its own \`every\`
-# in services.yaml. Hand-edit this value directly; there is no Settings UI for it.
+# in services.yaml. Hand-edit these values directly; there is no Settings UI for them.
 healthCheckTimeoutMs: 5000
+maxParallelFrameLoads: 3
 `;

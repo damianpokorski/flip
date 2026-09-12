@@ -90,7 +90,8 @@ export function openExternally() {
 			<iframe
 				use:registerFrame={service.id}
 				title={service.name}
-				src={frameSrc(service)}
+				src={appState.startedFrameIds.has(service.id) ? frameSrc(service) : undefined}
+				onload={() => appState.markFrameLoaded(service.id)}
 				class="service-frame"
 				class:active={service.id === appState.activeServiceId}
 				data-testid="service-iframe"

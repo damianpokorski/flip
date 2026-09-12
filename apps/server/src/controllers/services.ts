@@ -49,6 +49,7 @@ const ServiceBodyModel = t.Object({
   target: t.Optional(t.Union([t.Literal("frame"), t.Literal("external")])),
   proxyHeaders: t.Optional(t.Boolean()),
   hidden: t.Optional(t.Boolean()),
+  lazyLoad: t.Optional(t.Boolean()),
 });
 
 const ServiceModel = t.Object({
@@ -68,6 +69,7 @@ const ServiceModel = t.Object({
   target: t.Union([t.Literal("frame"), t.Literal("external")]),
   proxyHeaders: t.Boolean(),
   hidden: t.Boolean(),
+  lazyLoad: t.Boolean(),
   health: HealthModel,
 });
 

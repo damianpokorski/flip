@@ -23,6 +23,7 @@ let codes = $state("200");
 let every = $state("30s");
 let target = $state<"frame" | "external">("frame");
 let proxyHeaders = $state(false);
+let lazyLoad = $state(false);
 let sites = $state<SiteData[]>([]);
 
 onMount(async () => {
@@ -51,6 +52,7 @@ async function save() {
 		every,
 		target,
 		proxyHeaders,
+		lazyLoad,
 	});
 	if (error) {
 		console.error("Failed to create service", error);
@@ -78,6 +80,7 @@ async function save() {
 		bind:every
 		bind:target
 		bind:proxyHeaders
+		bind:lazyLoad
 		proxyAvailable={!!appState.proxyDomain}
 		{sites}
 		workspaces={appState.workspaces}

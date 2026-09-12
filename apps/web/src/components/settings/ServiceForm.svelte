@@ -42,6 +42,7 @@ let {
 	every = $bindable("30s"),
 	target = $bindable<"frame" | "external">("frame"),
 	proxyHeaders = $bindable(false),
+	lazyLoad = $bindable(false),
 	proxyAvailable = false,
 	sites = [],
 	workspaces,
@@ -63,6 +64,7 @@ let {
 	every?: string;
 	target?: "frame" | "external";
 	proxyHeaders?: boolean;
+	lazyLoad?: boolean;
 	proxyAvailable?: boolean;
 	sites?: { slug: string; inUse: boolean }[];
 	workspaces: { id: string; name: string }[];
@@ -279,6 +281,12 @@ const probeHint = $derived.by(() => {
 			hint="lets a service that blocks iframing embed anyway"
 		/>
 	{/if}
+
+	<Toggle
+		bind:on={lazyLoad}
+		label="Don't preload in the background"
+		hint="loads only once you open it, instead of on startup"
+	/>
 </div>
 
 <div class="row-actions">

@@ -66,6 +66,9 @@ export const ServiceSchema = z
     // Only takes effect when the server has PROXY_DOMAIN configured; a no-op otherwise.
     proxyHeaders: z.boolean().default(false),
     hidden: z.boolean().default(false),
+    // When true, this service's iframe is never preloaded in the background — it gets no
+    // `src` until the user actually opens it, bypassing the maxParallelFrameLoads stagger.
+    lazyLoad: z.boolean().default(false),
     position: z.number().int(),
   })
   .superRefine((service, ctx) => {

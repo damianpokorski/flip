@@ -21,6 +21,7 @@ export interface ServiceBody {
   target?: Service["target"];
   proxyHeaders?: boolean;
   hidden?: boolean;
+  lazyLoad?: boolean;
 }
 
 const toApiService = ({ position: _, ...service }: Service, health: HealthStatus) => ({
@@ -66,6 +67,7 @@ export class ServicesService {
       target: "frame",
       proxyHeaders: false,
       hidden: false,
+      lazyLoad: false,
       ...normalized,
     };
     const service = await this.repo.create(newService);

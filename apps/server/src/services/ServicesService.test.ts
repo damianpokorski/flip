@@ -5,8 +5,13 @@ import { ServicesService } from "./ServicesService";
 function fakeServicesRepo() {
   return {
     findAll: mock(async () => []),
-    create: mock(async (data: unknown) => ({ ...(data as object), position: 0 })),
-    update: mock(async (_id: string, data: unknown) => ({ ...(data as object) })),
+    create: mock(async (data: unknown) => ({
+      ...(data as object),
+      position: 0,
+    })),
+    update: mock(async (_id: string, data: unknown) => ({
+      ...(data as object),
+    })),
   };
 }
 
@@ -64,7 +69,11 @@ describe("ServicesService local-source derivation", () => {
 
   test("clears localSlug and leaves url untouched for source: external", async () => {
     // Arrange
-    const body = { ...baseBody, source: "external" as const, localSlug: "stale" };
+    const body = {
+      ...baseBody,
+      source: "external" as const,
+      localSlug: "stale",
+    };
 
     // Act
     await service.create(body);

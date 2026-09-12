@@ -71,6 +71,7 @@ const sampleService = {
   target: "frame",
   proxyHeaders: false,
   hidden: false,
+  lazyLoad: false,
   health: { ms: null, lastCheckedAt: null, bucket: "down" },
 };
 
