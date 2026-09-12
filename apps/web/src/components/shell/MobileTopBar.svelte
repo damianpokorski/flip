@@ -43,6 +43,7 @@ const active = $derived(appState.activeService);
 		gap: var(--sp-8);
 		padding: 0 var(--sp-6) 0 var(--sp-10);
 		border-bottom: var(--stroke-hair) solid var(--border-hair);
+		zoom: var(--ui-scale, 1);
 	}
 	.info {
 		flex: 1;

@@ -16,6 +16,12 @@
 @import "./styles/tokens/elevation.css";
 @import "./styles/tokens/motion.css";
 
+/* Baseline for the shell-chrome zoom multiplier (config.yaml's uiScale) — set here so it
+   resolves on first paint, before appState.refresh()'s config fetch ever runs. */
+:root {
+	--ui-scale: 1;
+}
+
 * {
 	box-sizing: border-box;
 }

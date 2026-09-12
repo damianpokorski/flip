@@ -7,6 +7,7 @@ const ConfigModel = t.Object({
 	maxParallelFrameLoads: t.Number(),
 	proxyDomain: t.Nullable(t.String()),
 	proxyPort: t.Number(),
+	uiScale: t.Number(),
 });
 
 const RawFileModel = t.Object({

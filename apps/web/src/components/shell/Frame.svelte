@@ -65,108 +65,116 @@ export function openExternally() {
 </script>
 
 <div class="frame">
-	{#if active && topbar}
-		<div class="topbar">
-			<span class="name">{active.name}</span>
-			<span class="host">{active.host}</span>
-			<Latency ms={active.health.ms} withDot size="2xs" />
-			<span class="spacer"></span>
-			<Badge tone="quiet">{workspaceLabel(appState.workspaces, active.ws)}</Badge>
-			<IconButton glyph="⟳" label="Reload frame" onclick={reload} />
-			<IconButton glyph="⇱" label="Open in a new tab" onclick={openExternally} />
-		</div>
-	{/if}
+  {#if active && topbar}
+    <div class="topbar">
+      <span class="name">{active.name}</span>
+      <span class="host">{active.host}</span>
+      <Latency ms={active.health.ms} withDot size="2xs" />
+      <span class="spacer"></span>
+      <Badge tone="quiet"
+        >{workspaceLabel(appState.workspaces, active.ws)}</Badge
+      >
+      <IconButton glyph="⟳" label="Reload frame" onclick={reload} />
+      <IconButton
+        glyph="⇱"
+        label="Open in a new tab"
+        onclick={openExternally}
+      />
+    </div>
+  {/if}
 
-	<div class="viewport">
-		{#if embeddedServices.length === 0}
-			<div class="empty">
-				<p>No services configured yet.</p>
-				<a href="/settings/services/add">Add your first service →</a>
-			</div>
-		{/if}
-		<!-- All embeddable services stay mounted; switching is a pure visibility toggle so
+  <div class="viewport">
+    {#if embeddedServices.length === 0}
+      <div class="empty">
+        <p>No services configured yet.</p>
+        <a href="/settings/services/add">Add your first service →</a>
+      </div>
+    {/if}
+    <!-- All embeddable services stay mounted; switching is a pure visibility toggle so
 		     embedded apps never reload or lose session/scroll state. -->
-		{#each embeddedServices as service (service.id)}
-			<iframe
-				use:registerFrame={service.id}
-				title={service.name}
-				src={appState.startedFrameIds.has(service.id) ? frameSrc(service) : undefined}
-				onload={() => appState.markFrameLoaded(service.id)}
-				class="service-frame"
-				class:active={service.id === appState.activeServiceId}
-				data-testid="service-iframe"
-				data-service-id={service.id}
-			></iframe>
-		{/each}
-	</div>
+    {#each embeddedServices as service (service.id)}
+      <iframe
+        use:registerFrame={service.id}
+        title={service.name}
+        src={appState.startedFrameIds.has(service.id)
+          ? frameSrc(service)
+          : undefined}
+        onload={() => appState.markFrameLoaded(service.id)}
+        class="service-frame"
+        class:active={service.id === appState.activeServiceId}
+        data-testid="service-iframe"
+        data-service-id={service.id}
+      ></iframe>
+    {/each}
+  </div>
 </div>
 
 <style>
-	.frame {
-		flex: 1;
-		min-width: 0;
-		min-height: 0;
-		display: flex;
-		flex-direction: column;
-		background: var(--bg-app);
-		position: relative;
-		overflow: hidden;
-	}
-	.topbar {
-		height: 34px;
-		flex: none;
-		display: flex;
-		align-items: center;
-		gap: var(--sp-8);
-		padding: 0 var(--sp-6) 0 var(--sp-9);
-		border-bottom: var(--stroke-hair) solid var(--border-hair);
-	}
-	.name {
-		font-family: var(--font-display);
-		font-size: var(--t-label);
-		letter-spacing: var(--track-normal);
-		color: var(--text-1);
-	}
-	.host {
-		font-family: var(--font-mono);
-		font-size: var(--t-mono-2xs);
-		color: var(--text-5);
-	}
-	.spacer {
-		flex: 1;
-	}
-	.viewport {
-		position: relative;
-		flex: 1;
-		min-height: 0;
-	}
-	.empty {
-		position: absolute;
-		inset: 0;
-		display: flex;
-		flex-direction: column;
-		gap: var(--sp-5);
-		align-items: center;
-		justify-content: center;
-		color: var(--text-4);
-		font-family: var(--font-display);
-	}
-	.empty a {
-		color: var(--accent);
-	}
-	.service-frame {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
-		border: none;
-		opacity: 0;
-		pointer-events: none;
-		z-index: 0;
-	}
-	.service-frame.active {
-		opacity: 1;
-		pointer-events: auto;
-		z-index: 1;
-	}
+  .frame {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-app);
+    position: relative;
+    overflow: hidden;
+  }
+  .topbar {
+    height: 34px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: 0 var(--sp-6) 0 var(--sp-9);
+    border-bottom: var(--stroke-hair) solid var(--border-hair);
+  }
+  .name {
+    font-family: var(--font-display);
+    font-size: var(--t-label);
+    letter-spacing: var(--track-normal);
+    color: var(--text-1);
+  }
+  .host {
+    font-family: var(--font-mono);
+    font-size: var(--t-mono-2xs);
+    color: var(--text-5);
+  }
+  .spacer {
+    flex: 1;
+  }
+  .viewport {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+  }
+  .empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-5);
+    align-items: center;
+    justify-content: center;
+    color: var(--text-4);
+    font-family: var(--font-display);
+  }
+  .empty a {
+    color: var(--accent);
+  }
+  .service-frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .service-frame.active {
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 1;
+  }
 </style>

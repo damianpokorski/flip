@@ -46,6 +46,7 @@ function selectWorkspace(id: string) {
 		gap: var(--sp-6);
 		height: 100%;
 		box-sizing: border-box;
+		zoom: var(--ui-scale, 1);
 	}
 	.divider {
 		width: var(--sp-11);

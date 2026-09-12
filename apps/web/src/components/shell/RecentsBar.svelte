@@ -36,6 +36,7 @@ let { onOpenSwitcher }: { onOpenSwitcher: () => void } = $props();
 		display: flex;
 		align-items: center;
 		gap: var(--sp-6);
+		zoom: var(--ui-scale, 1);
 	}
 	.tile {
 		flex: 1;

@@ -63,9 +63,13 @@ export const DEFAULT_CONFIG_YAML = `# FLIP global configuration.
 #   healthCheckTimeoutMs   how long to wait for a health check before marking a service down
 #   maxParallelFrameLoads  how many service iframes may load in the background at once — the
 #                          rest queue and load as slots free up, instead of all firing at once
+#   uiScale                scales FLIP's own shell chrome (spine, sidebar, hud, settings, etc.)
+#                          via CSS zoom — 1 is neutral/no scaling. Never affects embedded
+#                          service iframe content. Accepts 0.5–2.
 #
 # There is no per-install default check interval — each service sets its own \`every\`
 # in services.yaml. Hand-edit these values directly; there is no Settings UI for them.
 healthCheckTimeoutMs: 5000
 maxParallelFrameLoads: 3
+uiScale: 1
 `;

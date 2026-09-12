@@ -63,6 +63,13 @@ function openServiceFromUrl() {
 	appState.openService(match.id);
 }
 
+$effect(() => {
+	document.documentElement.style.setProperty(
+		"--ui-scale",
+		String(appState.uiScale),
+	);
+});
+
 onMount(() => {
 	appState.refresh().then(openServiceFromUrl);
 	appState.connectSse();

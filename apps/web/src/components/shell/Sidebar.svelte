@@ -48,6 +48,7 @@ const services = $derived(appState.servicesInActiveWorkspace);
 		padding: var(--sp-9) var(--sp-8);
 		overflow: hidden;
 		box-sizing: border-box;
+		zoom: var(--ui-scale, 1);
 	}
 	.sidebar.collapsed {
 		width: 0;

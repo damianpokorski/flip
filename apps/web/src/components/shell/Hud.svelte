@@ -67,6 +67,7 @@ import ServiceTile from "../service/ServiceTile.svelte";
 		align-items: center;
 		padding-top: 48px;
 		gap: var(--sp-10);
+		zoom: var(--ui-scale, 1);
 		animation: hudIn var(--dur-hud) var(--ease-out);
 		z-index: 100;
 	}

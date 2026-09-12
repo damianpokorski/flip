@@ -70,6 +70,7 @@ const isMobileEntryList = $derived(
     display: flex;
     flex-direction: column;
     background: var(--bg-app);
+    zoom: var(--ui-scale, 1);
   }
   .head {
     flex: none;

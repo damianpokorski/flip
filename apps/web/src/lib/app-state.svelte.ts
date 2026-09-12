@@ -44,6 +44,9 @@ class AppState {
 	// flight at once. Explicit user activation (openService/the initial active service) always
 	// bypasses this cap; it only throttles automatic background preloading.
 	maxParallelFrameLoads = $state(3);
+	// From config.yaml — scales the shell's own chrome via CSS zoom; 1 is neutral. Never
+	// applied to Frame's iframes. Hand-edit-only, no Settings UI control for this field.
+	uiScale = $state(1);
 	// Internal scheduler bookkeeping — not read from templates, so plain (non-reactive) fields.
 	private loadingFrameIds = new Set<string>();
 	private pendingFrameIds: string[] = [];
@@ -125,6 +128,7 @@ class AppState {
 			this.proxyDomain = configRes.data.proxyDomain;
 			this.proxyPort = configRes.data.proxyPort;
 			this.maxParallelFrameLoads = configRes.data.maxParallelFrameLoads;
+			this.uiScale = configRes.data.uiScale;
 		}
 
 		if (

@@ -41,10 +41,16 @@ test.describe("Visual — dashboard shell and HUD", () => {
 
 		try {
 			await page.goto("/");
-			// page.goto() only waits for the load event, not client-side hydration.
-			await expect(
-				page.getByTestId("sidebar-service-row").first(),
-			).toBeVisible();
+			// page.goto() only waits for the load event, not client-side hydration. This is
+			// also always the very first page load of the whole run (this spec sorts first,
+			// and workers:1 serializes everything after it) — against a cold `.vite` dep-
+			// optimization cache (a fresh checkout/CI run), Vite's crawler can discover new
+			// deps mid-navigation and force a full page reload, well past the default 5s
+			// timeout, even though nothing is actually broken. Every later assertion in the
+			// suite hits an already-warm dev server and resolves in well under a second.
+			await expect(page.getByTestId("sidebar-service-row").first()).toBeVisible(
+				{ timeout: 15_000 },
+			);
 
 			await expect(page).toHaveScreenshot("dashboard-shell.png");
 		} finally {

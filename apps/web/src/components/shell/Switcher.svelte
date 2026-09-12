@@ -82,6 +82,7 @@ let {
 		position: absolute;
 		inset: 0;
 		z-index: 100;
+		zoom: var(--ui-scale, 1);
 	}
 	.scrim {
 		position: absolute;
