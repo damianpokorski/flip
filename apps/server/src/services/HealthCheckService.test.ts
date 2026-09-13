@@ -203,6 +203,29 @@ describe("HealthCheckService", () => {
 		setIntervalSpy.mockRestore();
 	});
 
+	test("start()'s immediate tick logs (but doesn't throw) when the repo rejects", async () => {
+		// Arrange
+		const repo = {
+			findAll: mock(async () => {
+				throw new Error("disk error");
+			}),
+		};
+		const health = new HealthCheckService(repo as never);
+		const consoleError = spyOn(console, "error").mockImplementation(() => {});
+
+		// Act
+		health.start();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		health.stop();
+
+		// Assert
+		expect(consoleError).toHaveBeenCalledWith(
+			"[HealthCheckService] tick failed",
+			expect.any(Error),
+		);
+		consoleError.mockRestore();
+	});
+
 	test("stop() clears the interval so no further ticks are scheduled", async () => {
 		// Arrange
 		global.fetch = (async () =>

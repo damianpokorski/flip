@@ -6,6 +6,7 @@ const configFile = new YamlFile(
 	"config.yaml",
 	ConfigSchema,
 	DEFAULT_CONFIG_YAML,
+	{ migrateNewDefaultsOnBoot: true },
 );
 
 export const configStore = {

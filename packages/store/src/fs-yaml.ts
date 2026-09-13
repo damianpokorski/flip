@@ -1,8 +1,15 @@
 import { watch } from "node:fs";
-import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import {
+	chmod,
+	mkdir,
+	readFile,
+	rename,
+	stat,
+	writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import { env } from "@flip/env/server";
-import { type Document, parseDocument } from "yaml";
+import { type Document, isMap, parseDocument } from "yaml";
 import type { z } from "zod";
 import { AsyncLock } from "./lock";
 
@@ -15,6 +22,54 @@ export function dataFilePath(fileName: string): string {
 }
 
 const WATCH_DEBOUNCE_MS = 200;
+
+// a+rwx — deliberately permissive so a container process (often a different UID than
+// whatever created/owns a bind-mounted DATA_DIR) can always read/write its own files.
+// Applied only at the moment a file/dir is created, never against something that already
+// exists, so it can't clobber permissions a user has intentionally locked down.
+const CREATED_MODE = 0o777;
+
+// Creates DATA_DIR if missing and chmods it to CREATED_MODE, but only on the call that
+// actually creates it — `mkdir(..., { recursive: true })` resolves with the first path it
+// created, or `undefined` if the directory already existed, which is exactly the signal
+// needed here.
+async function ensureDataDirCreated(): Promise<void> {
+	const created = await mkdir(dataDir(), { recursive: true });
+	if (created !== undefined) await chmod(dataDir(), CREATED_MODE);
+}
+
+// For a map-root document (every plain-object schema, e.g. config.yaml), the `yaml` package
+// attaches the leading "header" comment to the first key's `commentBefore`, not to
+// `Document.commentBefore` (which only applies to non-map roots) — see fs-yaml.test.ts for a
+// worked example. These read/write that header regardless of which case applies.
+function getHeaderComment(doc: Document): string | null {
+	const { contents } = doc;
+	const first = isMap(contents) ? contents.items[0] : undefined;
+	if (first)
+		return (
+			(first.key as { commentBefore?: string | null }).commentBefore ?? null
+		);
+	return doc.commentBefore;
+}
+
+function setHeaderComment(doc: Document, comment: string | null): void {
+	const { contents } = doc;
+	const first = isMap(contents) ? contents.items[0] : undefined;
+	if (first) {
+		(first.key as { commentBefore?: string | null }).commentBefore = comment;
+		return;
+	}
+	doc.commentBefore = comment;
+}
+
+export interface YamlFileOptions {
+	// When set, ensureExists() also reconciles an already-existing file against the current
+	// schema: any top-level field the schema now defines with a default but the on-disk file
+	// doesn't have gets backfilled in, and the file's leading header comment is refreshed to
+	// match defaultContent's. Off by default — only meaningful for plain-object (not
+	// array-of-object) schemas today. See migrateExistingFile().
+	migrateNewDefaultsOnBoot?: boolean;
+}
 
 // A single YAML file backing one "table" (an array or a single object), read/written via
 // yaml's `Document` API rather than plain parse/stringify so that comments and formatting
@@ -29,23 +84,73 @@ export class YamlFile<T> {
 		private readonly fileName: string,
 		private readonly schema: z.ZodType<T>,
 		private readonly defaultContent: string,
+		private readonly options: YamlFileOptions = {},
 	) {}
 
 	private get path(): string {
 		return dataFilePath(this.fileName);
 	}
 
-	// Ensures DATA_DIR and this file exist. Never overwrites an existing file — purely
-	// additive, safe to call on every boot (mirrors the old runMigrations() safety-net call).
+	// Ensures DATA_DIR and this file exist. Never overwrites an existing file's data wholesale
+	// — purely additive, safe to call on every boot (mirrors the old runMigrations() safety-net
+	// call). If the file already exists and migrateNewDefaultsOnBoot is set, reconciles it
+	// against the current schema instead of just leaving it alone.
 	async ensureExists(): Promise<void> {
-		await mkdir(dataDir(), { recursive: true });
+		await ensureDataDirCreated();
 		const file = Bun.file(this.path);
-		if (await file.exists()) return;
+		if (await file.exists()) {
+			if (this.options.migrateNewDefaultsOnBoot)
+				await this.migrateExistingFile();
+			return;
+		}
 		await writeFile(this.path, this.defaultContent, "utf8");
 		// Self-test: confirm our own generated default actually satisfies the schema,
 		// so a typo in a default template fails loudly at boot instead of surfacing
 		// later as a confusing validation error against a file the user never touched.
 		this.schema.parse(parseDocument(this.defaultContent).toJS());
+		await chmod(this.path, CREATED_MODE);
+	}
+
+	// Backfills any top-level field the schema now defaults but this on-disk file predates
+	// (added after the file was created, so zod's .default() would otherwise only apply
+	// in-memory — see readFresh()). Only touches the file when something is actually missing;
+	// an already-current file is left byte-for-byte alone. Errors (e.g. a read-only mount)
+	// propagate rather than being swallowed, so a failed migration fails boot loudly instead
+	// of silently running with an unpersisted change.
+	private async migrateExistingFile(): Promise<void> {
+		return this.lock.run(async () => {
+			const { doc, data } = await this.readFresh();
+			let changed = false;
+			for (const key of Object.keys(data as object)) {
+				if (!doc.has(key)) {
+					doc.set(key, (data as Record<string, unknown>)[key]);
+					changed = true;
+				}
+			}
+			if (!changed) return;
+			// Field docs live in the header comment — once the file's shape has actually
+			// diverged from the template, refresh it too so it doesn't go stale, even if the
+			// existing header was hand-edited.
+			setHeaderComment(
+				doc,
+				getHeaderComment(parseDocument(this.defaultContent)),
+			);
+			// Self-test the migrated content before committing, same rationale as the
+			// fresh-create self-test above.
+			this.schema.parse(parseDocument(doc.toString()).toJS());
+			await this.writeDoc(doc);
+			this.cache = data;
+			console.log(
+				`[@flip/store] ${this.fileName}: backfilled new default field(s) on disk.`,
+			);
+		});
+	}
+
+	private async writeDoc(doc: Document): Promise<void> {
+		const text = doc.toString();
+		const tmpPath = `${this.path}.tmp-${process.pid}-${Date.now()}`;
+		await writeFile(tmpPath, text, "utf8");
+		await rename(tmpPath, this.path);
 	}
 
 	private async readFresh(): Promise<{ doc: Document; data: T }> {
@@ -80,10 +185,7 @@ export class YamlFile<T> {
 			const { doc } = await this.readFresh();
 			fn(doc);
 			const data = this.schema.parse(doc.toJS());
-			const text = doc.toString();
-			const tmpPath = `${this.path}.tmp-${process.pid}-${Date.now()}`;
-			await writeFile(tmpPath, text, "utf8");
-			await rename(tmpPath, this.path);
+			await this.writeDoc(doc);
 			this.cache = data;
 			return data;
 		});

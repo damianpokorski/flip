@@ -7,6 +7,7 @@ const updateMock = mock();
 const deleteMock = mock();
 const reorderMock = mock();
 const readRawMock = mock();
+const probeMock = mock();
 const allServiceMocks = [
 	getAllMock,
 	getByIdMock,
@@ -15,6 +16,7 @@ const allServiceMocks = [
 	deleteMock,
 	reorderMock,
 	readRawMock,
+	probeMock,
 ];
 
 // Must run before the controller is imported: it builds `new ServicesService(...)` and
@@ -47,7 +49,7 @@ mock.module("../services/HealthCheckService", () => ({
 }));
 mock.module("../services/ProbeService", () => ({
 	ProbeService: class {
-		probe = mock();
+		probe = probeMock;
 	},
 }));
 
@@ -186,6 +188,94 @@ describe("POST /services", () => {
 		// Assert
 		expect(response.status).toBe(400);
 		expect(body).toEqual({ message: "Unknown workspace id: bogus" });
+	});
+});
+
+describe("PUT /services/:id", () => {
+	test("updates and returns the service", async () => {
+		// Arrange
+		updateMock.mockResolvedValue(sampleService);
+		const requestBody = {
+			name: "Renamed",
+			mark: "EX",
+			hue: "sapphire",
+			host: "example.com",
+			url: "https://example.com",
+			ws: "default",
+		};
+
+		// Act
+		const response = await servicesController.handle(
+			new Request("http://localhost/services/1", {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(requestBody),
+			}),
+		);
+		const body = await response.json();
+
+		// Assert
+		expect(response.status).toBe(200);
+		expect(body).toEqual(sampleService);
+		expect(updateMock).toHaveBeenCalledWith(
+			"1",
+			expect.objectContaining(requestBody),
+		);
+	});
+
+	test("maps NotFoundError to a 404", async () => {
+		// Arrange
+		updateMock.mockRejectedValue(new NotFoundError("Service not found"));
+
+		// Act
+		const response = await servicesController.handle(
+			new Request("http://localhost/services/missing", {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					name: "Example",
+					mark: "EX",
+					hue: "sapphire",
+					host: "example.com",
+					url: "https://example.com",
+					ws: "default",
+				}),
+			}),
+		);
+		const body = await response.json();
+
+		// Assert
+		expect(response.status).toBe(404);
+		expect(body).toEqual({ message: "Service not found" });
+	});
+});
+
+describe("POST /services/probe", () => {
+	test("passes the url through to ProbeService and returns the result", async () => {
+		// Arrange
+		const probeResult = {
+			ms: 42,
+			statusCode: 200,
+			title: "Example",
+			embeddable: true,
+			suggestedTarget: "frame",
+		};
+		probeMock.mockResolvedValue(probeResult);
+
+		// Act
+		const response = await servicesController.handle(
+			new Request("http://localhost/services/probe", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ url: "https://example.com" }),
+			}),
+		);
+		const body = await response.json();
+
+		// Assert
+		expect(response.status).toBe(200);
+		expect(body).toEqual(probeResult);
+		expect(probeMock).toHaveBeenCalledWith("https://example.com");
 	});
 });
 

@@ -1,14 +1,17 @@
 import { afterAll, describe, expect, mock, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
+import { chmod, mkdir, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
 
 const tmpDir = mkdtempSync(path.join(os.tmpdir(), "flip-fs-yaml-test-"));
-mock.module("@flip/env/server", () => ({ env: { DATA_DIR: tmpDir } }));
+const mockEnv = { DATA_DIR: tmpDir };
+mock.module("@flip/env/server", () => ({ env: mockEnv }));
 
 const { YamlFile } = await import("./fs-yaml");
+
+const mode = async (p: string) => (await stat(p)).mode & 0o777;
 
 afterAll(() => {
 	rmSync(tmpDir, { recursive: true, force: true });
@@ -62,6 +65,140 @@ describe("YamlFile.ensureExists", () => {
 
 		// Act & Assert
 		await expect(file.ensureExists()).rejects.toThrow();
+	});
+});
+
+describe("YamlFile permissions", () => {
+	test("chmods a freshly created file to a+rwx", async () => {
+		// Arrange
+		const { file, filePath } = uniqueFile();
+
+		// Act
+		await file.ensureExists();
+
+		// Assert
+		expect(await mode(filePath)).toBe(0o777);
+	});
+
+	test("never changes the permissions of a file that already exists", async () => {
+		// Arrange
+		const { file, filePath } = uniqueFile();
+		await file.ensureExists();
+		await chmod(filePath, 0o600);
+
+		// Act
+		await file.ensureExists();
+
+		// Assert
+		expect(await mode(filePath)).toBe(0o600);
+	});
+
+	test("chmods DATA_DIR to a+rwx only the first time it's created", async () => {
+		// Arrange
+		const freshDataDir = path.join(
+			tmpDir,
+			`fresh-${Math.random().toString(36).slice(2)}`,
+		);
+		const originalDataDir = mockEnv.DATA_DIR;
+		mockEnv.DATA_DIR = freshDataDir;
+		const { file } = uniqueFile();
+
+		try {
+			// Act
+			await file.ensureExists();
+			const modeAfterCreate = await mode(freshDataDir);
+
+			// Assert — created fresh, so it got chmodded
+			expect(modeAfterCreate).toBe(0o777);
+
+			// Act — lock the dir down, then call ensureExists() again on an already-existing dir
+			await chmod(freshDataDir, 0o700);
+			await file.ensureExists();
+
+			// Assert — untouched the second time, since it already existed
+			expect(await mode(freshDataDir)).toBe(0o700);
+		} finally {
+			await chmod(freshDataDir, 0o700).catch(() => {});
+			mockEnv.DATA_DIR = originalDataDir;
+		}
+	});
+});
+
+describe("YamlFile migrateNewDefaultsOnBoot", () => {
+	const ConfigLikeSchema = z.object({
+		a: z.number().default(1),
+		b: z.number().default(2),
+	});
+	const NEW_CONFIG_YAML =
+		"# new header\n#   a   thing one\n#   b   thing two\na: 1\nb: 2\n";
+	const OLD_CONFIG_YAML = "# old header\n#   a   thing one\na: 1\n";
+
+	function configFile(defaultContent = NEW_CONFIG_YAML) {
+		const fileName = `config-${Math.random().toString(36).slice(2)}.yaml`;
+		const file = new YamlFile(fileName, ConfigLikeSchema, defaultContent, {
+			migrateNewDefaultsOnBoot: true,
+		});
+		return { file, filePath: path.join(tmpDir, fileName) };
+	}
+
+	test("backfills a missing top-level default field and refreshes the header comment", async () => {
+		// Arrange — a file written before `b` existed
+		const { file, filePath } = configFile();
+		await writeFile(filePath, OLD_CONFIG_YAML, "utf8");
+
+		// Act
+		await file.ensureExists();
+		const data = await file.read();
+		const raw = await file.readRaw();
+
+		// Assert
+		expect(data).toEqual({ a: 1, b: 2 });
+		expect(raw.content).toContain("b: 2");
+		expect(raw.content).toContain("# new header");
+		expect(raw.content).toContain("#   b   thing two");
+		expect(raw.content).not.toContain("# old header");
+	});
+
+	test("leaves an already-current file completely untouched", async () => {
+		// Arrange
+		const { file, filePath } = configFile();
+		await file.ensureExists();
+		const before = await stat(filePath);
+		await new Promise((resolve) => setTimeout(resolve, 10));
+
+		// Act
+		await file.ensureExists();
+		const after = await stat(filePath);
+
+		// Assert — no rewrite happened, so mtime is exactly the same
+		expect(after.mtimeMs).toBe(before.mtimeMs);
+	});
+
+	test("propagates a write failure instead of swallowing it", async () => {
+		// Arrange — a pre-existing file missing `b`, sitting in a directory this process
+		// can't write to (simulating e.g. a read-only mount)
+		const subDir = path.join(
+			tmpDir,
+			`readonly-${Math.random().toString(36).slice(2)}`,
+		);
+		await mkdir(subDir, { recursive: true });
+		const fileName = "config.yaml";
+		await writeFile(path.join(subDir, fileName), OLD_CONFIG_YAML, "utf8");
+		const originalDataDir = mockEnv.DATA_DIR;
+		mockEnv.DATA_DIR = subDir;
+		await chmod(subDir, 0o500); // read + execute, no write
+
+		try {
+			const file = new YamlFile(fileName, ConfigLikeSchema, NEW_CONFIG_YAML, {
+				migrateNewDefaultsOnBoot: true,
+			});
+
+			// Act & Assert
+			await expect(file.ensureExists()).rejects.toThrow();
+		} finally {
+			await chmod(subDir, 0o700);
+			mockEnv.DATA_DIR = originalDataDir;
+		}
 	});
 });
 

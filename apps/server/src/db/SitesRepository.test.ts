@@ -1,7 +1,17 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import path from "node:path";
-import { dataDir } from "@flip/store";
-import { SitesRepository } from "./SitesRepository";
+import { dataDir, resolveSiteFile } from "@flip/store";
+
+// Static imports are hoisted above mock.module(), so dataDir/resolveSiteFile above resolve
+// against the real, unmocked @flip/store — only listSiteSlugs is faked below.
+const listSiteSlugsMock = mock();
+mock.module("@flip/store", () => ({
+	dataDir,
+	resolveSiteFile,
+	listSiteSlugs: listSiteSlugsMock,
+}));
+
+const { SitesRepository } = await import("./SitesRepository");
 
 describe("SitesRepository.resolveFile", () => {
 	const repo = new SitesRepository();
@@ -42,5 +52,20 @@ describe("SitesRepository.resolveFile", () => {
 
 		// Assert
 		expect(resolved).toBeNull();
+	});
+});
+
+describe("SitesRepository.listSlugs", () => {
+	test("delegates to listSiteSlugs and returns its result", async () => {
+		// Arrange
+		const repo = new SitesRepository();
+		listSiteSlugsMock.mockResolvedValue(["demo", "blog"]);
+
+		// Act
+		const result = await repo.listSlugs();
+
+		// Assert
+		expect(result).toEqual(["demo", "blog"]);
+		expect(listSiteSlugsMock).toHaveBeenCalled();
 	});
 });

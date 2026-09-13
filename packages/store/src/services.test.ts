@@ -186,4 +186,22 @@ describe("servicesStore", () => {
 		// Assert
 		expect(raw.content).toContain("FLIP services");
 	});
+
+	test("watch returns a stop function", () => {
+		// Act
+		const stop = servicesStore.watch();
+
+		// Assert
+		expect(typeof stop).toBe("function");
+		stop();
+	});
+
+	test("onChange registers a listener and returns an unsubscribe function", () => {
+		// Act
+		const unsubscribe = servicesStore.onChange(() => {});
+
+		// Assert
+		expect(typeof unsubscribe).toBe("function");
+		unsubscribe();
+	});
 });

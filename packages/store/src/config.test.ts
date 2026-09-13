@@ -42,4 +42,22 @@ describe("configStore", () => {
 		// Assert
 		expect(raw.content).toContain("FLIP global configuration");
 	});
+
+	test("watch returns a stop function", () => {
+		// Act
+		const stop = configStore.watch();
+
+		// Assert
+		expect(typeof stop).toBe("function");
+		stop();
+	});
+
+	test("onChange registers a listener and returns an unsubscribe function", () => {
+		// Act
+		const unsubscribe = configStore.onChange(() => {});
+
+		// Assert
+		expect(typeof unsubscribe).toBe("function");
+		unsubscribe();
+	});
 });

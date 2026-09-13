@@ -100,6 +100,48 @@ describe("POST /workspaces", () => {
 	});
 });
 
+describe("PUT /workspaces/:id", () => {
+	test("updates and returns the workspace", async () => {
+		// Arrange
+		updateMock.mockResolvedValue(sampleWorkspace);
+		const requestBody = { name: "Renamed", label: "RN" };
+
+		// Act
+		const response = await workspacesController.handle(
+			new Request("http://localhost/workspaces/default", {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(requestBody),
+			}),
+		);
+		const body = await response.json();
+
+		// Assert
+		expect(response.status).toBe(200);
+		expect(body).toEqual(sampleWorkspace);
+		expect(updateMock).toHaveBeenCalledWith("default", requestBody);
+	});
+
+	test("maps NotFoundError to a 404", async () => {
+		// Arrange
+		updateMock.mockRejectedValue(new NotFoundError("Workspace not found"));
+
+		// Act
+		const response = await workspacesController.handle(
+			new Request("http://localhost/workspaces/missing", {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ name: "Renamed", label: "RN" }),
+			}),
+		);
+		const body = await response.json();
+
+		// Assert
+		expect(response.status).toBe(404);
+		expect(body).toEqual({ message: "Workspace not found" });
+	});
+});
+
 describe("DELETE /workspaces/:id", () => {
 	test("deletes and returns the workspace (member services are reassigned elsewhere)", async () => {
 		// Arrange

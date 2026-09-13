@@ -144,4 +144,22 @@ describe("workspacesStore", () => {
 		// Assert
 		expect(raw.content).toContain("FLIP workspaces");
 	});
+
+	test("watch returns a stop function", () => {
+		// Act
+		const stop = workspacesStore.watch();
+
+		// Assert
+		expect(typeof stop).toBe("function");
+		stop();
+	});
+
+	test("onChange registers a listener and returns an unsubscribe function", () => {
+		// Act
+		const unsubscribe = workspacesStore.onChange(() => {});
+
+		// Assert
+		expect(typeof unsubscribe).toBe("function");
+		unsubscribe();
+	});
 });
