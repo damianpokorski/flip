@@ -1,5 +1,5 @@
 import { browser } from "$app/environment";
-import { replaceState } from "$app/navigation";
+import { goto, replaceState } from "$app/navigation";
 import type { HealthStatus, ServiceData, WorkspaceData } from "./api";
 import { createApi, resolveServerUrl } from "./api";
 
@@ -308,9 +308,16 @@ class AppState {
 			this.startFrame(id);
 			this.activeServiceId = id;
 			this.sidebarCollapsed = true;
-			const url = new URL(window.location.href);
+			const url = new URL("/", window.location.href);
 			url.searchParams.set("service", service.name);
-			replaceState(url, {});
+			// The workspace view (Sidebar/Frame) only lives on "/" — the HUD is global and can be
+			// opened from /settings/* too, so a pick made from there must navigate back, not just
+			// patch the current (settings) URL in place.
+			if (window.location.pathname === "/") {
+				replaceState(url, {});
+			} else {
+				goto(url);
+			}
 		}
 		this.closeHud();
 	}
