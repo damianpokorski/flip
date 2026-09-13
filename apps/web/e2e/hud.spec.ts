@@ -78,4 +78,47 @@ test.describe("HUD — backtick-toggle command palette", () => {
 		await page.keyboard.press("`");
 		await expect(page.getByTestId("hud")).toHaveCount(0);
 	});
+
+	test("holding backtick and pressing its pinned digit jumps straight to that service", async ({
+		page,
+		request,
+	}) => {
+		// Arrange: a distinctively-named service pinned to digit 5.
+		const created = await request.post(`${API_BASE}/services`, {
+			data: {
+				name: "Pinboard",
+				mark: "PB",
+				hue: "lavender",
+				host: "pinboard.example.com",
+				url: "https://example.com",
+				ws: "default",
+				pin: "5",
+			},
+		});
+		expect(created.ok()).toBeTruthy();
+		const body = await created.json();
+
+		try {
+			await page.goto("/");
+			await expect(
+				page.getByTestId("sidebar-service-row").first(),
+			).toBeVisible();
+
+			// Act: hold ` down, tap the pinned digit while it's still held, then release `.
+			await page.keyboard.down("`");
+			await page.keyboard.press("5");
+			await page.keyboard.up("`");
+
+			// Assert: the HUD never stays open on a stray "5" in the query, and the pinned
+			// service is now active in the Frame.
+			await expect(page.getByTestId("hud")).toHaveCount(0);
+			await expect(
+				page.locator(
+					`[data-testid="service-iframe"][data-service-id="${body.id}"]`,
+				),
+			).toHaveClass(/active/);
+		} finally {
+			await request.delete(`${API_BASE}/services/${body.id}`);
+		}
+	});
 });

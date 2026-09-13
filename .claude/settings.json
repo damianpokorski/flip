@@ -11,9 +11,6 @@
 			"Bash(mise ls *)",
 			"Skill(update-config)",
 			"Skill(update-config:*)",
-			"Bash(rm -rf /nfs/nas/projects/homepage-draft/apps/web/e2e/.e2e-data)",
-			"Bash(DATA_DIR=/nfs/nas/projects/homepage-draft/apps/web/e2e/.e2e-data bun run ../bootstrap/src/index.ts)",
-			"Bash(DATA_DIR=/nfs/nas/projects/homepage-draft/apps/web/e2e/.e2e-data bun run src/index.ts)",
 			"Bash(curl -s http://localhost:8080/api/health)"
 		],
 		"deny": [

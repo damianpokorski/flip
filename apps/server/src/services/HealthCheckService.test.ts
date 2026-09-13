@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	mock,
+	spyOn,
+	test,
+} from "bun:test";
 import { bucketFor, parseCodes, parseEvery } from "@flip/store";
 
 // Static imports are hoisted above mock.module(), so these resolve against the real,
@@ -159,6 +167,57 @@ describe("HealthCheckService", () => {
 
 		// Assert
 		expect(status).toEqual({ ms: null, lastCheckedAt: null, bucket: "down" });
+	});
+
+	test("start() immediately kicks off a tick instead of waiting a full interval", async () => {
+		// Arrange
+		global.fetch = (async () =>
+			new Response("", { status: 200 })) as unknown as typeof fetch;
+		const findAll = mock(async () => [service()]);
+		const health = new HealthCheckService({ findAll } as never);
+
+		// Act
+		health.start();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		health.stop();
+
+		// Assert
+		expect(findAll).toHaveBeenCalled();
+	});
+
+	test("start() is idempotent — calling it twice doesn't start a second interval", async () => {
+		// Arrange
+		global.fetch = (async () =>
+			new Response("", { status: 200 })) as unknown as typeof fetch;
+		const repo = { findAll: async () => [service()] };
+		const health = new HealthCheckService(repo as never);
+		const setIntervalSpy = spyOn(global, "setInterval");
+
+		// Act
+		health.start();
+		health.start();
+		health.stop();
+
+		// Assert
+		expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+		setIntervalSpy.mockRestore();
+	});
+
+	test("stop() clears the interval so no further ticks are scheduled", async () => {
+		// Arrange
+		global.fetch = (async () =>
+			new Response("", { status: 200 })) as unknown as typeof fetch;
+		const repo = { findAll: async () => [service()] };
+		const health = new HealthCheckService(repo as never);
+		const clearIntervalSpy = spyOn(global, "clearInterval");
+
+		// Act
+		health.start();
+		health.stop();
+
+		// Assert
+		expect(clearIntervalSpy).toHaveBeenCalled();
+		clearIntervalSpy.mockRestore();
 	});
 
 	test("does not re-check a service before its own `every` interval has elapsed", async () => {

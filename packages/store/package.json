@@ -9,6 +9,10 @@
 			"default": "./src/*.ts"
 		}
 	},
+	"scripts": {
+		"test": "bun test ./src --isolate",
+		"test:coverage": "bun test ./src --coverage --isolate"
+	},
 	"dependencies": {
 		"@flip/env": "workspace:*",
 		"yaml": "2.9.0",
