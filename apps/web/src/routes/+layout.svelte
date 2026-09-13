@@ -17,11 +17,29 @@ function isTypingTarget(target: EventTarget | null): boolean {
 	return tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable;
 }
 
+// Tracks whether ` is physically still held down, so a digit pressed during that hold can be
+// read as the "jump to pinned service" chord instead of a search-query keystroke. A quick tap
+// (keydown immediately followed by keyup) clears this before any subsequent key is pressed, so
+// normal typing into the HUD's query is unaffected.
+let backtickHeld = false;
+
 function onKeydown(e: KeyboardEvent) {
-	if (e.key === "`" && !e.repeat && !isTypingTarget(e.target)) {
+	if (e.key === "`" && !isTypingTarget(e.target)) {
+		// preventDefault on every repeat too, not just the first press — otherwise holding `
+		// down auto-repeats the keystroke into the (open) HUD's query via the generic
+		// single-char branch below.
 		e.preventDefault();
-		if (appState.hudOpen) appState.closeHud();
-		else appState.openHud();
+		if (!e.repeat) {
+			backtickHeld = true;
+			if (appState.hudOpen) appState.closeHud();
+			else appState.openHud();
+		}
+		return;
+	}
+	if (backtickHeld && /^[0-9]$/.test(e.key)) {
+		e.preventDefault();
+		const pinned = appState.services.find((service) => service.pin === e.key);
+		if (pinned) appState.openService(pinned.id);
 		return;
 	}
 	if (!appState.hudOpen) return;
@@ -48,6 +66,10 @@ function onKeydown(e: KeyboardEvent) {
 	} else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
 		appState.setQuery(appState.query + e.key);
 	}
+}
+
+function onKeyup(e: KeyboardEvent) {
+	if (e.key === "`") backtickHeld = false;
 }
 
 function openServiceFromUrl() {
@@ -86,7 +108,7 @@ onMount(() => {
 });
 </script>
 
-<svelte:window onkeydown={onKeydown} />
+<svelte:window onkeydown={onKeydown} onkeyup={onKeyup} />
 
 <div class="shell">
 	{#if !appState.isMobile}
