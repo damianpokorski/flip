@@ -19,8 +19,7 @@ test.describe("Settings — service CRUD", () => {
 		await expect(row).toBeVisible();
 
 		// Edit — verify persistence after reload, not just in-memory state
-		await row.getByTestId("service-menu-toggle").click();
-		await row.getByTestId("edit-service-btn").click();
+		await row.click();
 		await page.waitForURL(/\/settings\/services\/[^/]+$/);
 		await page
 			.getByTestId("service-name-input")

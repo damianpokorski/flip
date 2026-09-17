@@ -68,7 +68,15 @@ async function remove(id: string) {
 
 	<div class="rows">
 		{#each filtered as service (service.id)}
-			<div class="row" data-testid="service-row" data-service-id={service.id}>
+			<div
+				class="row"
+				data-testid="service-row"
+				data-service-id={service.id}
+				onclick={() => goto(`/settings/services/${service.id}`)}
+				role="button"
+				tabindex="0"
+				onkeydown={(e) => e.key === "Enter" && goto(`/settings/services/${service.id}`)}
+			>
 				<div class="col service">
 					<ServiceMark text={service.mark} hue={service.hue} size="md" inset />
 					<span class="name-stack">
@@ -82,11 +90,18 @@ async function remove(id: string) {
 				<span class="col health">
 					<StatusDot ms={service.health.ms} size={6} />
 					<Latency ms={service.health.ms} align="right" width={42} />
-					<span class="menu-toggle" data-testid="service-menu-toggle" onclick={() => (openMenuId = openMenuId === service.id ? null : service.id)} role="button" tabindex="0" onkeydown={(e) => e.key === "Enter" && (openMenuId = service.id)}>
+					<span
+						class="menu-toggle"
+						data-testid="service-menu-toggle"
+						onclick={(e) => { e.stopPropagation(); openMenuId = openMenuId === service.id ? null : service.id; }}
+						role="button"
+						tabindex="0"
+						onkeydown={(e) => { e.stopPropagation(); if (e.key === "Enter") openMenuId = service.id; }}
+					>
 						⋮
 					</span>
 					{#if openMenuId === service.id}
-						<div class="menu">
+						<div class="menu" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
 							<button type="button" data-testid="edit-service-btn" onclick={() => goto(`/settings/services/${service.id}`)}>Edit</button>
 							<button type="button" class="danger" data-testid="delete-service-btn" onclick={() => remove(service.id)}>Delete</button>
 						</div>
@@ -145,6 +160,7 @@ async function remove(id: string) {
 		gap: var(--sp-6);
 		padding: var(--sp-3) var(--sp-4);
 		border-radius: var(--r-row);
+		cursor: pointer;
 	}
 	.row:hover {
 		background: var(--accent-row-quiet);

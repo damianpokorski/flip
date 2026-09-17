@@ -1,3 +1,9 @@
+import { mkdir } from "node:fs/promises";
+import { configStore } from "./config";
+import { servicesStore } from "./services";
+import { sitesDir } from "./sites";
+import { workspacesStore } from "./workspaces";
+
 export * from "./codes";
 export { configStore } from "./config";
 export { dataDir } from "./fs-yaml";
@@ -11,12 +17,6 @@ export { servicesStore } from "./services";
 export * from "./sites";
 export type { NewWorkspace, WorkspacePatch } from "./workspaces";
 export { workspacesStore } from "./workspaces";
-
-import { mkdir } from "node:fs/promises";
-import { configStore } from "./config";
-import { servicesStore } from "./services";
-import { sitesDir } from "./sites";
-import { workspacesStore } from "./workspaces";
 
 // Ensures DATA_DIR and its default YAML files exist. Safe to call on every boot — purely
 // additive, never overwrites an existing file. Shared by apps/bootstrap (the Docker/
