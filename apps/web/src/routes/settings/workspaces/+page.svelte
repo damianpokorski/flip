@@ -80,6 +80,36 @@ async function handleCardFinalize(
 			.put({ ...moved.service, ws: workspaceId });
 		if (error) console.error("Failed to update service workspace", error);
 		await appState.refresh();
+		dragActive = false;
+		return;
+	}
+
+	// A cross-column drag fires `finalize` on the source zone too, once the card has left it —
+	// its remaining items all still match `workspaceId` (same as a real same-column reorder), so
+	// tell the two apart by whether this zone's card set is unchanged from canonical: a card
+	// actually missing here means this is that source-zone echo, already handled by the
+	// destination zone's own finalize above — nothing to persist.
+	const newIds = e.detail.items.map((item) => item.id);
+	const canonicalIds = appState.services
+		.filter((service) => service.ws === workspaceId)
+		.map((service) => service.id);
+	const isSameCardSet =
+		newIds.length === canonicalIds.length &&
+		canonicalIds.every((id) => newIds.includes(id));
+	if (isSameCardSet) {
+		// Reordering within a column: `position` is one global ordering across every service
+		// (not scoped per workspace), so the reorder endpoint requires the full id set. Splice
+		// this column's new order back into appState.services (already position-sorted),
+		// leaving every other workspace's relative order untouched.
+		let cursor = 0;
+		const fullOrderedIds = appState.services.map((service) =>
+			service.ws === workspaceId ? newIds[cursor++] : service.id,
+		);
+		const { error } = await api.api.services.reorder.patch({
+			ids: fullOrderedIds,
+		});
+		if (error) console.error("Failed to reorder services", error);
+		await appState.refresh();
 	}
 	dragActive = false;
 }

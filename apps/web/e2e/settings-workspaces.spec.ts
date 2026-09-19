@@ -81,4 +81,88 @@ test.describe("Settings — workspaces board drag-and-drop", () => {
 			await request.delete(`${API_BASE}/workspaces/${workspaceBody.id}`);
 		}
 	});
+
+	test("dragging a service card within its column reorders it, without changing its workspace", async ({
+		page,
+		request,
+	}) => {
+		// Arrange: two services seeded into the same (default) workspace, back to back.
+		const first = await request.post(`${API_BASE}/services`, {
+			data: {
+				name: "Reorder First",
+				mark: "R1",
+				hue: "teal",
+				host: "reorder-first.io",
+				url: "https://reorder-first.io",
+				ws: "default",
+			},
+		});
+		expect(first.ok()).toBeTruthy();
+		const firstBody = await first.json();
+
+		const second = await request.post(`${API_BASE}/services`, {
+			data: {
+				name: "Reorder Second",
+				mark: "R2",
+				hue: "teal",
+				host: "reorder-second.io",
+				url: "https://reorder-second.io",
+				ws: "default",
+			},
+		});
+		expect(second.ok()).toBeTruthy();
+		const secondBody = await second.json();
+
+		try {
+			await page.goto("/settings/workspaces");
+			const firstCard = page.locator(
+				`[data-testid="workspace-card"][data-service-id="${firstBody.id}"]`,
+			);
+			const secondCard = page.locator(
+				`[data-testid="workspace-card"][data-service-id="${secondBody.id}"]`,
+			);
+			await expect(firstCard).toBeVisible();
+			await expect(secondCard).toBeVisible();
+
+			// Act: drag the card seeded second up above the one seeded first.
+			const sourceBox = await secondCard.boundingBox();
+			const destBox = await firstCard.boundingBox();
+			if (!sourceBox || !destBox) throw new Error("missing bounding box");
+
+			await page.mouse.move(
+				sourceBox.x + sourceBox.width / 2,
+				sourceBox.y + sourceBox.height / 2,
+			);
+			await page.mouse.down();
+			await page.mouse.move(destBox.x + destBox.width / 2, destBox.y + 2, {
+				steps: 10,
+			});
+			await page.mouse.move(destBox.x + destBox.width / 2, destBox.y + 1, {
+				steps: 2,
+			});
+			await page.mouse.up();
+
+			// Assert: the reorder persisted server-side — the second-seeded service now sorts
+			// before the first-seeded one — and neither service's workspace changed.
+			await expect(async () => {
+				const res = await request.get(`${API_BASE}/services`);
+				const services = (await res.json()) as { id: string; ws: string }[];
+				const firstIndex = services.findIndex((s) => s.id === firstBody.id);
+				const secondIndex = services.findIndex((s) => s.id === secondBody.id);
+				expect(secondIndex).toBeLessThan(firstIndex);
+			}).toPass();
+
+			const firstAfter = await request.get(
+				`${API_BASE}/services/${firstBody.id}`,
+			);
+			expect((await firstAfter.json()).ws).toBe("default");
+			const secondAfter = await request.get(
+				`${API_BASE}/services/${secondBody.id}`,
+			);
+			expect((await secondAfter.json()).ws).toBe("default");
+		} finally {
+			await request.delete(`${API_BASE}/services/${firstBody.id}`);
+			await request.delete(`${API_BASE}/services/${secondBody.id}`);
+		}
+	});
 });
