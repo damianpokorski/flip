@@ -32,7 +32,7 @@ export type ConfigData = NonNullable<
 >;
 
 export type RawFile = NonNullable<
-	Awaited<ReturnType<ApiClient["api"]["services"]["raw"]["get"]>>["data"]
+	Awaited<ReturnType<ApiClient["api"]["config"]["raw"]["get"]>>["data"]
 >;
 
 export type SiteData = NonNullable<

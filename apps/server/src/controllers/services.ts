@@ -86,17 +86,11 @@ const ProbeResultModel = t.Object({
 	suggestedTarget: t.Union([t.Literal("frame"), t.Literal("external")]),
 });
 
-const RawFileModel = t.Object({
-	content: t.String(),
-	updatedAt: t.String(),
-});
-
 const models = {
 	Service: ServiceModel,
 	ServiceBody: ServiceBodyModel,
 	ServiceList: t.Array(ServiceModel),
 	ProbeResult: ProbeResultModel,
-	RawFile: RawFileModel,
 };
 
 const repository = new ServicesRepository();
@@ -120,23 +114,23 @@ export const servicesController = new Elysia({ prefix: "/services" })
 		response: "ServiceList",
 		detail: { summary: "List all services", tags: ["services"] },
 	})
-	.get("/raw", () => service.readRaw(), {
-		response: "RawFile",
-		detail: {
-			summary: "Get services.yaml's live file text",
-			tags: ["services"],
-		},
-	})
 	.post("/probe", ({ body }) => probeService.probe(body.url), {
 		body: t.Object({ url: t.String() }),
 		response: "ProbeResult",
 		detail: { summary: "Probe a candidate service URL", tags: ["services"] },
 	})
-	.patch("/reorder", ({ body }) => service.reorder(body.ids), {
-		body: t.Object({ ids: t.Array(t.String()) }),
-		response: { 200: "ServiceList", 400: "BadRequestError" },
-		detail: { summary: "Reorder services", tags: ["services"] },
-	})
+	.patch(
+		"/reorder",
+		({ body }) => service.reorder(body.workspaceId, body.ids),
+		{
+			body: t.Object({ workspaceId: t.String(), ids: t.Array(t.String()) }),
+			response: { 200: "ServiceList", 400: "BadRequestError" },
+			detail: {
+				summary: "Reorder services within a workspace",
+				tags: ["services"],
+			},
+		},
+	)
 	.get("/:id", ({ params: { id } }) => service.getById(id), {
 		params: t.Object({ id: t.String() }),
 		response: { 200: "Service", 404: "NotFoundError" },

@@ -6,8 +6,6 @@ const createMock = mock();
 const updateMock = mock();
 const deleteMock = mock();
 const reorderMock = mock();
-const reassignWorkspaceMock = mock();
-const readRawMock = mock();
 mock.module("@flip/store", () => ({
 	servicesStore: {
 		findAll: findAllMock,
@@ -16,8 +14,6 @@ mock.module("@flip/store", () => ({
 		update: updateMock,
 		delete: deleteMock,
 		reorder: reorderMock,
-		reassignWorkspace: reassignWorkspaceMock,
-		readRaw: readRawMock,
 	},
 }));
 
@@ -34,9 +30,7 @@ describe("ServicesRepository", () => {
 		await repo.create({ name: "Example" } as never);
 		await repo.update("1", { name: "Renamed" });
 		await repo.delete("1");
-		await repo.reorder(["1", "2"]);
-		await repo.reassignWorkspace("from", "to");
-		await repo.readRaw();
+		await repo.reorder("default", ["1", "2"]);
 
 		// Assert
 		expect(findAllMock).toHaveBeenCalled();
@@ -44,8 +38,6 @@ describe("ServicesRepository", () => {
 		expect(createMock).toHaveBeenCalledWith({ name: "Example" });
 		expect(updateMock).toHaveBeenCalledWith("1", { name: "Renamed" });
 		expect(deleteMock).toHaveBeenCalledWith("1");
-		expect(reorderMock).toHaveBeenCalledWith(["1", "2"]);
-		expect(reassignWorkspaceMock).toHaveBeenCalledWith("from", "to");
-		expect(readRawMock).toHaveBeenCalled();
+		expect(reorderMock).toHaveBeenCalledWith("default", ["1", "2"]);
 	});
 });

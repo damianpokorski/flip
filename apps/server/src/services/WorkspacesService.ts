@@ -1,4 +1,3 @@
-import type { ServicesRepository } from "../db/ServicesRepository";
 import type {
 	NewWorkspace,
 	Workspace,
@@ -13,10 +12,7 @@ export interface WorkspaceBody {
 }
 
 export class WorkspacesService {
-	constructor(
-		private readonly repo: WorkspacesRepository,
-		private readonly services: ServicesRepository,
-	) {}
+	constructor(private readonly repo: WorkspacesRepository) {}
 
 	getAll() {
 		return this.repo.findAll();
@@ -42,19 +38,21 @@ export class WorkspacesService {
 		return workspace!;
 	}
 
-	// Reassigns member services to the next remaining workspace (by position) rather than
-	// refusing the deletion — except when this is the last workspace left, since `ws` is
-	// required and there'd be nowhere valid to reassign to.
+	// Reassigns member services to the next remaining workspace (by order) rather than
+	// refusing the deletion — except when this is the last workspace left, since a service
+	// always belongs to exactly one workspace and there'd be nowhere valid to reassign to.
+	// The reassignment and the deletion happen as one atomic write (see
+	// workspacesStore.deleteWithCascade) — there's no window where services have moved but
+	// the workspace hasn't been removed yet, or vice versa.
 	async delete(id: string) {
 		const workspace = await this.getById(id);
 		const [fallback] = (await this.repo.findAll()).filter((w) => w.id !== id);
 		if (!fallback) {
 			throw new BadRequestError("Cannot delete the only remaining workspace");
 		}
-		await this.services.reassignWorkspace(id, fallback.id);
-		await this.repo.delete(id);
+		const deleted = await this.repo.deleteWithCascade(id, fallback.id);
 		notifyDataChanged();
-		return workspace;
+		return deleted ?? workspace;
 	}
 
 	async reorder(ids: string[]) {
@@ -70,10 +68,6 @@ export class WorkspacesService {
 		const workspaces = await this.repo.reorder(ids);
 		notifyDataChanged();
 		return workspaces;
-	}
-
-	readRaw() {
-		return this.repo.readRaw();
 	}
 }
 

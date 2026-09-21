@@ -13,18 +13,18 @@ afterAll(() => {
 });
 
 describe("initDataFiles", () => {
-	test("creates all default YAML files and the sites directory", async () => {
+	test("creates config.yaml and the sites directory, with no legacy files to migrate", async () => {
 		// Act
 		await initDataFiles();
 
 		// Assert
-		expect(existsSync(path.join(tmpDir, "services.yaml"))).toBe(true);
-		expect(existsSync(path.join(tmpDir, "workspaces.yaml"))).toBe(true);
 		expect(existsSync(path.join(tmpDir, "config.yaml"))).toBe(true);
+		expect(existsSync(path.join(tmpDir, "services.yaml"))).toBe(false);
+		expect(existsSync(path.join(tmpDir, "workspaces.yaml"))).toBe(false);
 		expect(existsSync(path.join(tmpDir, "sites"))).toBe(true);
 	});
 
-	test("is safe to call again — never overwrites existing files", async () => {
+	test("is safe to call again — never overwrites existing data", async () => {
 		// Arrange
 		const { servicesStore } = await import("./services");
 		await servicesStore.create({

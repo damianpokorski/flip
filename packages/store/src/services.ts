@@ -1,97 +1,112 @@
-import { DEFAULT_SERVICES_YAML } from "./defaults";
-import { YamlFile } from "./fs-yaml";
-import { type Service, ServicesFileSchema } from "./schemas/service";
+import { isMap, isSeq } from "yaml";
+import {
+	combinedConfigFile,
+	ensureBlockStyle,
+	findServiceLocation,
+	findWorkspaceIndex,
+} from "./combined-file";
+import type { CombinedConfig } from "./schemas/config";
+import type { Service } from "./schemas/service";
 
-const servicesFile = new YamlFile(
-	"services.yaml",
-	ServicesFileSchema,
-	DEFAULT_SERVICES_YAML,
-);
+export type NewService = Service;
+export type ServicePatch = Partial<Omit<Service, "id">>;
 
-export type NewService = Omit<Service, "position">;
-export type ServicePatch = Partial<Omit<Service, "id" | "position">>;
+// Flattens every workspace's nested services into one list, synthesizing `ws` from each
+// service's parent workspace — the wire/domain `Service` shape still has `ws`, even though it
+// isn't stored on disk (see schemas/service.ts's OnDiskServiceSchema).
+function flattenServices(config: CombinedConfig): Service[] {
+	return config.workspaces.flatMap((workspace) =>
+		workspace.services.map((service) => ({ ...service, ws: workspace.id })),
+	);
+}
 
 export const servicesStore = {
-	ensureExists: () => servicesFile.ensureExists(),
-	onChange: (listener: (services: Service[]) => void) =>
-		servicesFile.onChange(listener),
-	watch: () => servicesFile.watch(),
-	readRaw: () => servicesFile.readRaw(),
-
 	async findAll(): Promise<Service[]> {
-		const services = await servicesFile.read();
-		return [...services].sort((a, b) => a.position - b.position);
+		const config = await combinedConfigFile.read();
+		return flattenServices(config);
 	},
 
 	async findById(id: string): Promise<Service | undefined> {
-		const services = await servicesFile.read();
-		return services.find((service) => service.id === id);
+		const config = await combinedConfigFile.read();
+		return flattenServices(config).find((service) => service.id === id);
 	},
 
 	async create(input: NewService): Promise<Service> {
-		const services = await servicesFile.mutate((doc) => {
-			const current = (doc.toJS() ?? []) as Service[];
-			const position =
-				current.length === 0
-					? 0
-					: Math.max(...current.map((service) => service.position)) + 1;
-			doc.add({ ...input, position });
+		const config = await combinedConfigFile.mutate((doc) => {
+			const wsIndex = findWorkspaceIndex(doc, input.ws);
+			if (wsIndex === -1) return;
+			const { ws: _ws, ...onDiskFields } = input;
+			ensureBlockStyle(doc, ["workspaces", wsIndex, "services"]);
+			doc.addIn(["workspaces", wsIndex, "services"], onDiskFields);
 		});
 		// biome-ignore lint/style/noNonNullAssertion: we just inserted this id above
-		return services.find((service) => service.id === input.id)!;
+		return flattenServices(config).find((service) => service.id === input.id)!;
 	},
 
 	async update(id: string, patch: ServicePatch): Promise<Service | undefined> {
-		const services = await servicesFile.mutate((doc) => {
-			const current = (doc.toJS() ?? []) as Service[];
-			const index = current.findIndex((service) => service.id === id);
-			if (index === -1) return;
-			for (const [key, value] of Object.entries(patch)) {
-				doc.setIn([index, key], value);
+		const config = await combinedConfigFile.mutate((doc) => {
+			const location = findServiceLocation(doc, id);
+			if (!location) return;
+			const { wsIndex, svcIndex, workspaceId } = location;
+			const { ws: newWs, ...rest } = patch;
+			for (const [key, value] of Object.entries(rest)) {
+				doc.setIn(["workspaces", wsIndex, "services", svcIndex, key], value);
+			}
+			if (newWs !== undefined && newWs !== workspaceId) {
+				const newWsIndex = findWorkspaceIndex(doc, newWs);
+				if (newWsIndex === -1) return;
+				// Move the raw YAML node (not a plain-JS round trip) so any comment on this
+				// service's entry survives the move to its new workspace.
+				const node = doc.getIn(
+					["workspaces", wsIndex, "services", svcIndex],
+					true,
+				);
+				doc.deleteIn(["workspaces", wsIndex, "services", svcIndex]);
+				ensureBlockStyle(doc, ["workspaces", newWsIndex, "services"]);
+				doc.addIn(["workspaces", newWsIndex, "services"], node);
 			}
 		});
-		return services.find((service) => service.id === id);
+		return flattenServices(config).find((service) => service.id === id);
 	},
 
 	async delete(id: string): Promise<Service | undefined> {
 		let deleted: Service | undefined;
-		await servicesFile.mutate((doc) => {
-			const current = (doc.toJS() ?? []) as Service[];
-			const index = current.findIndex((service) => service.id === id);
-			if (index === -1) return;
-			deleted = current[index];
-			doc.deleteIn([index]);
+		await combinedConfigFile.mutate((doc) => {
+			const location = findServiceLocation(doc, id);
+			if (!location) return;
+			const { wsIndex, svcIndex, workspaceId } = location;
+			const data = doc.toJS() as CombinedConfig;
+			// biome-ignore lint/style/noNonNullAssertion: location above already confirmed existence
+			const onDiskService = data.workspaces[wsIndex]!.services[svcIndex]!;
+			deleted = { ...onDiskService, ws: workspaceId };
+			doc.deleteIn(["workspaces", wsIndex, "services", svcIndex]);
 		});
 		return deleted;
 	},
 
-	async reorder(orderedIds: string[]): Promise<Service[]> {
-		const services = await servicesFile.mutate((doc) => {
-			const current = (doc.toJS() ?? []) as Service[];
-			const indexById = new Map(
-				current.map((service, index) => [service.id, index]),
+	// Reorders the services within a single workspace — `orderedIds` must be exactly that
+	// workspace's current service ids (validated by ServicesService.reorder). Reshuffles the
+	// seq's existing item nodes in place, rather than replacing the array with fresh plain-JS
+	// objects, so every entry's comments survive the reorder.
+	async reorder(workspaceId: string, orderedIds: string[]): Promise<Service[]> {
+		const config = await combinedConfigFile.mutate((doc) => {
+			const wsIndex = findWorkspaceIndex(doc, workspaceId);
+			if (wsIndex === -1) return;
+			const seq = doc.getIn(["workspaces", wsIndex, "services"], true);
+			if (!isSeq(seq)) return;
+			const byId = new Map(
+				seq.items.map((item) => [
+					isMap(item) ? item.get("id") : undefined,
+					item,
+				]),
 			);
-			orderedIds.forEach((id, position) => {
-				const index = indexById.get(id);
-				if (index !== undefined) doc.setIn([index, "position"], position);
-			});
+			const reordered = orderedIds
+				.map((id) => byId.get(id))
+				.filter((item) => item !== undefined);
+			seq.items = reordered;
 		});
-		return [...services].sort((a, b) => a.position - b.position);
-	},
-
-	// Reassigns every service pointing at `fromWorkspaceId` to `toWorkspaceId` — used when a
-	// workspace is deleted, so member services survive with a valid `ws` rather than the
-	// deletion being refused (refusal only happens when there's no other workspace left).
-	async reassignWorkspace(
-		fromWorkspaceId: string,
-		toWorkspaceId: string,
-	): Promise<void> {
-		await servicesFile.mutate((doc) => {
-			const current = (doc.toJS() ?? []) as Service[];
-			current.forEach((service, index) => {
-				if (service.ws !== fromWorkspaceId) return;
-				doc.setIn([index, "ws"], toWorkspaceId);
-			});
-		});
+		return flattenServices(config).filter(
+			(service) => service.ws === workspaceId,
+		);
 	},
 };

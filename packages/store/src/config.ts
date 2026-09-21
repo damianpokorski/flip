@@ -1,27 +1,29 @@
-import { DEFAULT_CONFIG_YAML } from "./defaults";
-import { YamlFile } from "./fs-yaml";
-import { type Config, ConfigSchema } from "./schemas/config";
-
-const configFile = new YamlFile(
-	"config.yaml",
-	ConfigSchema,
-	DEFAULT_CONFIG_YAML,
-	{ migrateNewDefaultsOnBoot: true },
-);
+import { combinedConfigFile } from "./combined-file";
+import type { CombinedConfig, Config } from "./schemas/config";
 
 export const configStore = {
-	ensureExists: () => configFile.ensureExists(),
-	onChange: (listener: (config: Config) => void) =>
-		configFile.onChange(listener),
-	watch: () => configFile.watch(),
-	get: () => configFile.read(),
-	readRaw: () => configFile.readRaw(),
+	ensureExists: () => combinedConfigFile.ensureExists(),
+	onChange: (listener: (config: CombinedConfig) => void) =>
+		combinedConfigFile.onChange(listener),
+	watch: () => combinedConfigFile.watch(),
+	readRaw: () => combinedConfigFile.readRaw(),
+
+	// Scalar settings only — strips `workspaces` so this store's contract stays "just the
+	// global settings", matching its shape before services/workspaces were folded into the
+	// same physical file.
+	async get(): Promise<Config> {
+		const { workspaces: _workspaces, ...config } =
+			await combinedConfigFile.read();
+		return config;
+	},
 
 	async update(patch: Partial<Config>): Promise<Config> {
-		return configFile.mutate((doc) => {
-			for (const [key, value] of Object.entries(patch)) {
-				doc.setIn([key], value);
-			}
-		});
+		const { workspaces: _workspaces, ...config } =
+			await combinedConfigFile.mutate((doc) => {
+				for (const [key, value] of Object.entries(patch)) {
+					doc.setIn([key], value);
+				}
+			});
+		return config;
 	},
 };

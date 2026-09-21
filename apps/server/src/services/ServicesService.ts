@@ -28,10 +28,7 @@ export interface ServiceBody {
 	lazyLoad?: boolean;
 }
 
-const toApiService = (
-	{ position: _, ...service }: Service,
-	health: HealthStatus,
-) => ({
+const toApiService = (service: Service, health: HealthStatus) => ({
 	...service,
 	health,
 });
@@ -104,25 +101,26 @@ export class ServicesService {
 		return toApiService(service!, this.getHealth(id));
 	}
 
-	async reorder(ids: string[]) {
+	async reorder(workspaceId: string, ids: string[]) {
+		await this.assertValidWorkspaceId(workspaceId);
 		const current = await this.repo.findAll();
-		const currentIds = new Set(current.map((service) => service.id));
+		const currentIds = new Set(
+			current
+				.filter((service) => service.ws === workspaceId)
+				.map((service) => service.id),
+		);
 		const sameSet =
 			ids.length === currentIds.size && ids.every((id) => currentIds.has(id));
 		if (!sameSet) {
 			throw new BadRequestError(
-				"ids must be exactly the set of existing service ids",
+				"ids must be exactly this workspace's existing service ids",
 			);
 		}
-		const services = await this.repo.reorder(ids);
+		const services = await this.repo.reorder(workspaceId, ids);
 		notifyDataChanged();
 		return services.map((service) =>
 			toApiService(service, this.getHealth(service.id)),
 		);
-	}
-
-	readRaw() {
-		return this.repo.readRaw();
 	}
 
 	// source: "local" services don't take a user-typed url — it's derived from localSlug so

@@ -6,7 +6,6 @@ const createMock = mock();
 const updateMock = mock();
 const deleteMock = mock();
 const reorderMock = mock();
-const readRawMock = mock();
 const probeMock = mock();
 const allServiceMocks = [
 	getAllMock,
@@ -15,7 +14,6 @@ const allServiceMocks = [
 	updateMock,
 	deleteMock,
 	reorderMock,
-	readRawMock,
 	probeMock,
 ];
 
@@ -29,7 +27,6 @@ mock.module("../services/ServicesService", () => ({
 		update = updateMock;
 		delete = deleteMock;
 		reorder = reorderMock;
-		readRaw = readRawMock;
 	},
 }));
 mock.module("../db/ServicesRepository", () => ({
@@ -306,7 +303,7 @@ describe("PATCH /services/reorder", () => {
 			new Request("http://localhost/services/reorder", {
 				method: "PATCH",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ ids: ["1"] }),
+				body: JSON.stringify({ workspaceId: "default", ids: ["1"] }),
 			}),
 		);
 		const body = await response.json();
@@ -314,29 +311,31 @@ describe("PATCH /services/reorder", () => {
 		// Assert
 		expect(response.status).toBe(200);
 		expect(body).toEqual([sampleService]);
-		expect(reorderMock).toHaveBeenCalledWith(["1"]);
+		expect(reorderMock).toHaveBeenCalledWith("default", ["1"]);
 	});
-});
 
-describe("GET /services/raw", () => {
-	test("returns the raw file text", async () => {
+	test("maps BadRequestError to a 400", async () => {
 		// Arrange
-		readRawMock.mockResolvedValue({
-			content: "- id: 1\n",
-			updatedAt: "2026-01-01T00:00:00.000Z",
-		});
+		reorderMock.mockRejectedValue(
+			new BadRequestError(
+				"ids must be exactly this workspace's existing service ids",
+			),
+		);
 
 		// Act
 		const response = await servicesController.handle(
-			new Request("http://localhost/services/raw"),
+			new Request("http://localhost/services/reorder", {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ workspaceId: "default", ids: ["bogus"] }),
+			}),
 		);
 		const body = await response.json();
 
 		// Assert
-		expect(response.status).toBe(200);
+		expect(response.status).toBe(400);
 		expect(body).toEqual({
-			content: "- id: 1\n",
-			updatedAt: "2026-01-01T00:00:00.000Z",
+			message: "ids must be exactly this workspace's existing service ids",
 		});
 	});
 });

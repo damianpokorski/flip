@@ -1,12 +1,7 @@
 import { cors } from "@elysiajs/cors";
 import staticPlugin from "@elysiajs/static";
 import { env } from "@flip/env/server";
-import {
-	configStore,
-	initDataFiles,
-	servicesStore,
-	workspacesStore,
-} from "@flip/store";
+import { configStore, initDataFiles, servicesStore } from "@flip/store";
 import Elysia from "elysia";
 import { caddyProxyService, healthCheckService } from "./controllers/services";
 import { notifyDataChanged } from "./events";
@@ -17,18 +12,14 @@ import { router } from "./router";
 // running `bun run dev:server` directly against a fresh checkout.
 await initDataFiles();
 
-// Watch services.yaml/workspaces.yaml/config.yaml for hand-edits and push them out over SSE
-// — @flip/store only reloads its in-memory cache once something is actually watching, so
-// this has to run once per process, not per-request.
-servicesStore.watch();
-workspacesStore.watch();
+// Watch config.yaml (services/workspaces/settings, all one file) for hand-edits and push them
+// out over SSE — @flip/store only reloads its in-memory cache once something is actually
+// watching, so this has to run once per process, not per-request.
 configStore.watch();
-servicesStore.onChange((services) => {
+configStore.onChange(async () => {
 	notifyDataChanged();
-	caddyProxyService.reload(services);
+	caddyProxyService.reload(await servicesStore.findAll());
 });
-workspacesStore.onChange(notifyDataChanged);
-configStore.onChange(notifyDataChanged);
 
 // Skipped under e2e (DISABLE_HEALTH_CHECKS, set by apps/web/playwright.config.ts) — health
 // checks are live fetches against each service's real URL, which would make screenshot/e2e

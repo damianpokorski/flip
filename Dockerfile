@@ -63,7 +63,8 @@ COPY --from=builder /app/packages/store/package.json packages/store/
 COPY --from=builder /app/packages/env/package.json   packages/env/
 
 ENV NODE_ENV=production
-# Directory inside the /data volume mount where services.yaml/workspaces.yaml/config.yaml live
+# Directory inside the /data volume mount where config.yaml (services, workspaces, and
+# settings, all nested in one file) and sites/ live
 ENV DATA_DIR=/data
 # Directory from which to serve the static SvelteKit build
 ENV PUBLIC_DIR=/app/public

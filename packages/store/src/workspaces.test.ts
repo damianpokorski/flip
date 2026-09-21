@@ -7,20 +7,22 @@ const tmpDir = mkdtempSync(path.join(os.tmpdir(), "flip-workspaces-store-"));
 mock.module("@flip/env/server", () => ({ env: { DATA_DIR: tmpDir } }));
 
 const { workspacesStore } = await import("./workspaces");
+const { servicesStore } = await import("./services");
+const { configStore } = await import("./config");
 
 afterAll(() => {
 	rmSync(tmpDir, { recursive: true, force: true });
 });
 
 describe("workspacesStore", () => {
-	test("ensureExists seeds the default workspace", async () => {
+	test("the default workspace is seeded (via configStore.ensureExists)", async () => {
 		// Act
-		await workspacesStore.ensureExists();
+		await configStore.ensureExists();
 		const all = await workspacesStore.findAll();
 
 		// Assert
 		expect(all).toHaveLength(1);
-		expect(all[0]).toMatchObject({ id: "default", position: 0 });
+		expect(all[0]).toMatchObject({ id: "default" });
 	});
 
 	test("create derives an id by slugifying the name", async () => {
@@ -48,19 +50,18 @@ describe("workspacesStore", () => {
 		expect(second.id).toBe("dev-tools-2");
 	});
 
-	test("create assigns the next position after the current max", async () => {
-		// Arrange
-		const before = await workspacesStore.findAll();
-		const maxPosition = Math.max(...before.map((w) => w.position));
-
+	test("create appends the workspace after the existing ones, with no services yet", async () => {
 		// Act
 		const created = await workspacesStore.create({
 			name: `Unique ${Math.random()}`,
 			label: "UQ",
 		});
+		const all = await workspacesStore.findAll();
+		const services = await servicesStore.findAll();
 
 		// Assert
-		expect(created.position).toBe(maxPosition + 1);
+		expect(all[all.length - 1]?.id).toBe(created.id);
+		expect(services.filter((s) => s.ws === created.id)).toHaveLength(0);
 	});
 
 	test("findById returns the matching workspace", async () => {
@@ -106,60 +107,62 @@ describe("workspacesStore", () => {
 		expect(updated).toBeUndefined();
 	});
 
-	test("delete removes and returns the deleted workspace", async () => {
-		// Arrange
-		const created = await workspacesStore.create({
-			name: "To Delete",
-			label: "TD",
-		});
-
-		// Act
-		const deleted = await workspacesStore.delete(created.id);
-		const found = await workspacesStore.findById(created.id);
-
-		// Assert
-		expect(deleted?.id).toBe(created.id);
-		expect(found).toBeUndefined();
-	});
-
-	test("reorder applies new positions in the given order", async () => {
+	test("reorder applies the new order", async () => {
 		// Arrange
 		const a = await workspacesStore.create({ name: "Order A", label: "OA" });
 		const b = await workspacesStore.create({ name: "Order B", label: "OB" });
 
 		// Act
 		const reordered = await workspacesStore.reorder([b.id, a.id]);
-		const bAfter = reordered.find((w) => w.id === b.id);
-		const aAfter = reordered.find((w) => w.id === a.id);
+		const bIndex = reordered.findIndex((w) => w.id === b.id);
+		const aIndex = reordered.findIndex((w) => w.id === a.id);
 
 		// Assert
-		// biome-ignore lint/style/noNonNullAssertion: both were just created above
-		expect(bAfter!.position).toBeLessThan(aAfter!.position);
+		expect(bIndex).toBeLessThan(aIndex);
 	});
 
-	test("readRaw returns the live file text", async () => {
+	test("deleteWithCascade moves the deleted workspace's services onto the fallback, in one call, then removes it", async () => {
+		// Arrange
+		const from = await workspacesStore.create({ name: "From", label: "FR" });
+		const to = await workspacesStore.create({ name: "To", label: "TO" });
+		const member = await servicesStore.create({
+			id: `svc-${Math.random().toString(36).slice(2)}`,
+			name: "Member",
+			mark: "MB",
+			hue: "sapphire",
+			host: "member.home.lan",
+			url: "https://member.home.lan",
+			healthCheckUrl: null,
+			source: "external",
+			localSlug: null,
+			ws: from.id,
+			pin: null,
+			codes: "200",
+			every: "30s",
+			target: "frame",
+			proxyHeaders: false,
+			hidden: false,
+			lazyLoad: false,
+		});
+
 		// Act
-		const raw = await workspacesStore.readRaw();
+		const deleted = await workspacesStore.deleteWithCascade(from.id, to.id);
 
 		// Assert
-		expect(raw.content).toContain("FLIP workspaces");
+		expect(deleted?.id).toBe(from.id);
+		expect(await workspacesStore.findById(from.id)).toBeUndefined();
+		const memberAfter = await servicesStore.findById(member.id);
+		expect(memberAfter?.ws).toBe(to.id);
 	});
 
-	test("watch returns a stop function", () => {
+	test("deleteWithCascade returns undefined for an unknown id", async () => {
 		// Act
-		const stop = workspacesStore.watch();
+		const deleted = await workspacesStore.deleteWithCascade(
+			"does-not-exist",
+			"default",
+		);
 
 		// Assert
-		expect(typeof stop).toBe("function");
-		stop();
-	});
-
-	test("onChange registers a listener and returns an unsubscribe function", () => {
-		// Act
-		const unsubscribe = workspacesStore.onChange(() => {});
-
-		// Assert
-		expect(typeof unsubscribe).toBe("function");
-		unsubscribe();
+		expect(deleted).toBeUndefined();
 	});
 });

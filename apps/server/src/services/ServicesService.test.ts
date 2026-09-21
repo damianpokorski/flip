@@ -21,7 +21,6 @@ function service(overrides: Partial<Record<string, unknown>> = {}) {
 		proxyHeaders: false,
 		hidden: false,
 		lazyLoad: false,
-		position: 0,
 		...overrides,
 	};
 }
@@ -32,7 +31,6 @@ function fakeServicesRepo(services: ReturnType<typeof service>[] = []) {
 		findById: mock(async (id: string) => services.find((s) => s.id === id)),
 		create: mock(async (data: unknown) => ({
 			...(data as object),
-			position: 0,
 		})),
 		update: mock(async (_id: string, data: unknown) => ({
 			...(data as object),
@@ -280,7 +278,21 @@ describe("ServicesService.update/delete", () => {
 });
 
 describe("ServicesService.reorder", () => {
-	test("throws BadRequestError when the id set doesn't match existing services", async () => {
+	test("throws BadRequestError for an unknown workspace id", async () => {
+		// Arrange
+		const servicesRepo = fakeServicesRepo([service({ id: "1" })]);
+		const workspacesRepo = { findById: mock(async () => undefined) };
+		// biome-ignore lint/suspicious/noExplicitAny: fakes intentionally implement a subset
+		const svc = new ServicesService(servicesRepo as any, workspacesRepo as any);
+
+		// Act & Assert
+		await expect(svc.reorder("bogus-ws", ["1"])).rejects.toThrow(
+			BadRequestError,
+		);
+		expect(servicesRepo.reorder).not.toHaveBeenCalled();
+	});
+
+	test("throws BadRequestError when the id set doesn't match the workspace's existing services", async () => {
 		// Arrange
 		const servicesRepo = fakeServicesRepo([service({ id: "1" })]);
 		const workspacesRepo = fakeWorkspacesRepo();
@@ -288,11 +300,13 @@ describe("ServicesService.reorder", () => {
 		const svc = new ServicesService(servicesRepo as any, workspacesRepo as any);
 
 		// Act & Assert
-		await expect(svc.reorder(["bogus"])).rejects.toThrow(BadRequestError);
+		await expect(svc.reorder("default", ["bogus"])).rejects.toThrow(
+			BadRequestError,
+		);
 		expect(servicesRepo.reorder).not.toHaveBeenCalled();
 	});
 
-	test("reorders when the id set exactly matches existing services", async () => {
+	test("reorders when the id set exactly matches the workspace's existing services", async () => {
 		// Arrange
 		const servicesRepo = fakeServicesRepo([
 			service({ id: "1" }),
@@ -303,9 +317,26 @@ describe("ServicesService.reorder", () => {
 		const svc = new ServicesService(servicesRepo as any, workspacesRepo as any);
 
 		// Act
-		await svc.reorder(["2", "1"]);
+		await svc.reorder("default", ["2", "1"]);
 
 		// Assert
-		expect(servicesRepo.reorder).toHaveBeenCalledWith(["2", "1"]);
+		expect(servicesRepo.reorder).toHaveBeenCalledWith("default", ["2", "1"]);
+	});
+
+	test("ignores ids from another workspace when checking the id set", async () => {
+		// Arrange — a service in a different workspace must not count toward "default"'s set
+		const servicesRepo = fakeServicesRepo([
+			service({ id: "1", ws: "default" }),
+			service({ id: "2", ws: "media" }),
+		]);
+		const workspacesRepo = fakeWorkspacesRepo();
+		// biome-ignore lint/suspicious/noExplicitAny: fakes intentionally implement a subset
+		const svc = new ServicesService(servicesRepo as any, workspacesRepo as any);
+
+		// Act & Assert
+		await expect(svc.reorder("default", ["2"])).rejects.toThrow(
+			BadRequestError,
+		);
+		expect(servicesRepo.reorder).not.toHaveBeenCalled();
 	});
 });

@@ -231,9 +231,9 @@ const probeHint = $derived.by(() => {
 	</div>
 
 	<div class="row">
-		<div class="grow">
-			<FieldLabel>Workspace</FieldLabel>
-			<div class="badges" role="radiogroup">
+		<div class="grow" class:needs-attention={!ws}>
+			<FieldLabel>Workspace <span class="required">· required</span></FieldLabel>
+			<div class="badges" role="radiogroup" data-testid="service-workspace-picker">
 				{#each workspaces as workspace (workspace.id)}
 					<span
 						data-testid="service-workspace-toggle"
@@ -248,6 +248,7 @@ const probeHint = $derived.by(() => {
 					</span>
 				{/each}
 			</div>
+			{#if !ws}<p class="field-hint">pick one to enable save</p>{/if}
 		</div>
 		<div class="narrow">
 			<FieldLabel>Ok codes</FieldLabel>
@@ -299,6 +300,7 @@ const probeHint = $derived.by(() => {
 	<Button
 		onclick={onsave}
 		disabled={!ws || (source === "local" ? !localSlug : !url)}
+		title={!ws ? "Select a workspace above first" : undefined}
 		data-testid="service-save-btn">{label}</Button
 	>
 </div>
@@ -378,6 +380,21 @@ const probeHint = $derived.by(() => {
 		font-family: var(--font-mono);
 		font-size: var(--t-mono-2xs);
 		color: var(--text-4);
+	}
+	.field-hint {
+		font-family: var(--font-mono);
+		font-size: var(--t-mono-2xs);
+		color: var(--text-4);
+		margin: 0;
+		padding-top: var(--sp-3);
+	}
+	.required {
+		color: var(--text-4);
+	}
+	.needs-attention .badges {
+		border: 1px dashed var(--border-dashed);
+		border-radius: var(--r-sm);
+		padding: var(--sp-5);
 	}
 	.row-actions {
 		display: flex;

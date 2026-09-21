@@ -26,18 +26,7 @@ export class ServicesRepository {
 		return servicesStore.delete(id);
 	}
 
-	reorder(orderedIds: string[]): Promise<Service[]> {
-		return servicesStore.reorder(orderedIds);
-	}
-
-	reassignWorkspace(
-		fromWorkspaceId: string,
-		toWorkspaceId: string,
-	): Promise<void> {
-		return servicesStore.reassignWorkspace(fromWorkspaceId, toWorkspaceId);
-	}
-
-	readRaw(): Promise<{ content: string; updatedAt: string }> {
-		return servicesStore.readRaw();
+	reorder(workspaceId: string, orderedIds: string[]): Promise<Service[]> {
+		return servicesStore.reorder(workspaceId, orderedIds);
 	}
 }

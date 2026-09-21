@@ -6,7 +6,6 @@ const createMock = mock();
 const updateMock = mock();
 const deleteMock = mock();
 const reorderMock = mock();
-const readRawMock = mock();
 const allServiceMocks = [
 	getAllMock,
 	getByIdMock,
@@ -14,7 +13,6 @@ const allServiceMocks = [
 	updateMock,
 	deleteMock,
 	reorderMock,
-	readRawMock,
 ];
 
 mock.module("../services/WorkspacesService", () => ({
@@ -25,14 +23,10 @@ mock.module("../services/WorkspacesService", () => ({
 		update = updateMock;
 		delete = deleteMock;
 		reorder = reorderMock;
-		readRaw = readRawMock;
 	},
 }));
 mock.module("../db/WorkspacesRepository", () => ({
 	WorkspacesRepository: class {},
-}));
-mock.module("../db/ServicesRepository", () => ({
-	ServicesRepository: class {},
 }));
 
 const { workspacesController } = await import("./workspaces");

@@ -2,11 +2,10 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { BadRequestError, NotFoundError } from "../errors";
 import { WorkspacesService } from "./WorkspacesService";
 
-const workspace = (id: string, position: number) => ({
+const workspace = (id: string) => ({
 	id,
 	name: id.toUpperCase(),
 	label: id.slice(0, 2).toUpperCase(),
-	position,
 });
 
 function fakeWorkspacesRepo(workspaces: ReturnType<typeof workspace>[]) {
@@ -15,77 +14,66 @@ function fakeWorkspacesRepo(workspaces: ReturnType<typeof workspace>[]) {
 		findById: async (id: string) => workspaces.find((w) => w.id === id),
 		create: mock(),
 		update: mock(),
-		delete: mock(async (id: string) => workspaces.find((w) => w.id === id)),
 		reorder: mock(),
-		readRaw: mock(),
+		deleteWithCascade: mock(async (id: string) =>
+			workspaces.find((w) => w.id === id),
+		),
 	};
-}
-
-function fakeServicesRepo() {
-	return { reassignWorkspace: mock() };
 }
 
 describe("WorkspacesService.delete", () => {
 	let workspacesRepo: ReturnType<typeof fakeWorkspacesRepo>;
-	let servicesRepo: ReturnType<typeof fakeServicesRepo>;
 	let service: WorkspacesService;
 
 	beforeEach(() => {
 		workspacesRepo = fakeWorkspacesRepo([
-			workspace("default", 0),
-			workspace("media", 1),
+			workspace("default"),
+			workspace("media"),
 		]);
-		servicesRepo = fakeServicesRepo();
 		// biome-ignore lint/suspicious/noExplicitAny: fakes intentionally implement a subset
-		service = new WorkspacesService(workspacesRepo as any, servicesRepo as any);
+		service = new WorkspacesService(workspacesRepo as any);
 	});
 
-	test("reassigns member services to the first remaining workspace by position, then deletes it", async () => {
-		// Arrange — deleting "default" (position 0) should fall back to "media" (position 1)
+	test("cascades to the first remaining workspace via one atomic call, then returns the deleted workspace", async () => {
+		// Arrange — deleting "default" should fall back to "media" (the only one left)
 
 		// Act
 		const result = await service.delete("default");
 
 		// Assert
-		expect(servicesRepo.reassignWorkspace).toHaveBeenCalledWith(
+		expect(workspacesRepo.deleteWithCascade).toHaveBeenCalledWith(
 			"default",
 			"media",
 		);
-		expect(workspacesRepo.delete).toHaveBeenCalledWith("default");
 		expect(result.id).toBe("default");
 	});
 
 	test("refuses to delete the only remaining workspace", async () => {
 		// Arrange
-		workspacesRepo = fakeWorkspacesRepo([workspace("default", 0)]);
-		servicesRepo = fakeServicesRepo();
+		workspacesRepo = fakeWorkspacesRepo([workspace("default")]);
 		// biome-ignore lint/suspicious/noExplicitAny: fakes intentionally implement a subset
-		service = new WorkspacesService(workspacesRepo as any, servicesRepo as any);
+		service = new WorkspacesService(workspacesRepo as any);
 
 		// Act & Assert
 		await expect(service.delete("default")).rejects.toThrow(BadRequestError);
-		expect(servicesRepo.reassignWorkspace).not.toHaveBeenCalled();
-		expect(workspacesRepo.delete).not.toHaveBeenCalled();
+		expect(workspacesRepo.deleteWithCascade).not.toHaveBeenCalled();
 	});
 
 	test("throws NotFoundError for a nonexistent workspace before any cascade logic runs", async () => {
 		// Act & Assert
 		await expect(service.delete("missing")).rejects.toThrow(NotFoundError);
-		expect(servicesRepo.reassignWorkspace).not.toHaveBeenCalled();
-		expect(workspacesRepo.delete).not.toHaveBeenCalled();
+		expect(workspacesRepo.deleteWithCascade).not.toHaveBeenCalled();
 	});
 });
 
 describe("WorkspacesService.getAll/getById", () => {
 	let workspacesRepo: ReturnType<typeof fakeWorkspacesRepo>;
-	let servicesRepo: ReturnType<typeof fakeServicesRepo>;
 	let service: WorkspacesService;
 
 	beforeEach(() => {
-		workspacesRepo = fakeWorkspacesRepo([workspace("default", 0)]);
-		servicesRepo = fakeServicesRepo();
+		workspacesRepo = fakeWorkspacesRepo([workspace("default")]);
 		// biome-ignore lint/suspicious/noExplicitAny: fakes intentionally implement a subset
-		service = new WorkspacesService(workspacesRepo as any, servicesRepo as any);
+		service = new WorkspacesService(workspacesRepo as any);
 	});
 
 	test("getAll delegates directly to the repository", async () => {
@@ -93,7 +81,7 @@ describe("WorkspacesService.getAll/getById", () => {
 		const result = await service.getAll();
 
 		// Assert
-		expect(result).toEqual([workspace("default", 0)]);
+		expect(result).toEqual([workspace("default")]);
 	});
 
 	test("getById returns the workspace when found", async () => {
@@ -112,19 +100,17 @@ describe("WorkspacesService.getAll/getById", () => {
 
 describe("WorkspacesService.create/update", () => {
 	let workspacesRepo: ReturnType<typeof fakeWorkspacesRepo>;
-	let servicesRepo: ReturnType<typeof fakeServicesRepo>;
 	let service: WorkspacesService;
 
 	beforeEach(() => {
-		workspacesRepo = fakeWorkspacesRepo([workspace("default", 0)]);
-		servicesRepo = fakeServicesRepo();
+		workspacesRepo = fakeWorkspacesRepo([workspace("default")]);
 		// biome-ignore lint/suspicious/noExplicitAny: fakes intentionally implement a subset
-		service = new WorkspacesService(workspacesRepo as any, servicesRepo as any);
+		service = new WorkspacesService(workspacesRepo as any);
 	});
 
 	test("create delegates to the repository", async () => {
 		// Arrange
-		workspacesRepo.create.mockResolvedValue(workspace("media", 1));
+		workspacesRepo.create.mockResolvedValue(workspace("media"));
 
 		// Act
 		const result = await service.create({ name: "Media", label: "MD" });
@@ -148,7 +134,7 @@ describe("WorkspacesService.create/update", () => {
 	test("update patches an existing workspace", async () => {
 		// Arrange
 		workspacesRepo.update.mockResolvedValue({
-			...workspace("default", 0),
+			...workspace("default"),
 			name: "Renamed",
 		});
 
@@ -165,17 +151,15 @@ describe("WorkspacesService.create/update", () => {
 
 describe("WorkspacesService.reorder", () => {
 	let workspacesRepo: ReturnType<typeof fakeWorkspacesRepo>;
-	let servicesRepo: ReturnType<typeof fakeServicesRepo>;
 	let service: WorkspacesService;
 
 	beforeEach(() => {
 		workspacesRepo = fakeWorkspacesRepo([
-			workspace("default", 0),
-			workspace("media", 1),
+			workspace("default"),
+			workspace("media"),
 		]);
-		servicesRepo = fakeServicesRepo();
 		// biome-ignore lint/suspicious/noExplicitAny: fakes intentionally implement a subset
-		service = new WorkspacesService(workspacesRepo as any, servicesRepo as any);
+		service = new WorkspacesService(workspacesRepo as any);
 	});
 
 	test("throws BadRequestError when the id set doesn't match existing workspaces", async () => {

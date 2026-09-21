@@ -42,7 +42,7 @@ async function ensureDataDirCreated(): Promise<void> {
 // attaches the leading "header" comment to the first key's `commentBefore`, not to
 // `Document.commentBefore` (which only applies to non-map roots) — see fs-yaml.test.ts for a
 // worked example. These read/write that header regardless of which case applies.
-function getHeaderComment(doc: Document): string | null {
+export function getHeaderComment(doc: Document): string | null {
 	const { contents } = doc;
 	const first = isMap(contents) ? contents.items[0] : undefined;
 	if (first)
@@ -52,7 +52,7 @@ function getHeaderComment(doc: Document): string | null {
 	return doc.commentBefore;
 }
 
-function setHeaderComment(doc: Document, comment: string | null): void {
+export function setHeaderComment(doc: Document, comment: string | null): void {
 	const { contents } = doc;
 	const first = isMap(contents) ? contents.items[0] : undefined;
 	if (first) {

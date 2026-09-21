@@ -22,15 +22,14 @@ export class WorkspacesRepository {
 		return workspacesStore.update(id, data);
 	}
 
-	delete(id: string): Promise<Workspace | undefined> {
-		return workspacesStore.delete(id);
-	}
-
 	reorder(orderedIds: string[]): Promise<Workspace[]> {
 		return workspacesStore.reorder(orderedIds);
 	}
 
-	readRaw(): Promise<{ content: string; updatedAt: string }> {
-		return workspacesStore.readRaw();
+	deleteWithCascade(
+		id: string,
+		fallbackId: string,
+	): Promise<Workspace | undefined> {
+		return workspacesStore.deleteWithCascade(id, fallbackId);
 	}
 }

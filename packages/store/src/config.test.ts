@@ -40,7 +40,7 @@ describe("configStore", () => {
 		const raw = await configStore.readRaw();
 
 		// Assert
-		expect(raw.content).toContain("FLIP global configuration");
+		expect(raw.content).toContain("FLIP configuration");
 	});
 
 	test("watch returns a stop function", () => {

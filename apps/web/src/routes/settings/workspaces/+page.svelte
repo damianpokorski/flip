@@ -97,16 +97,11 @@ async function handleCardFinalize(
 		newIds.length === canonicalIds.length &&
 		canonicalIds.every((id) => newIds.includes(id));
 	if (isSameCardSet) {
-		// Reordering within a column: `position` is one global ordering across every service
-		// (not scoped per workspace), so the reorder endpoint requires the full id set. Splice
-		// this column's new order back into appState.services (already position-sorted),
-		// leaving every other workspace's relative order untouched.
-		let cursor = 0;
-		const fullOrderedIds = appState.services.map((service) =>
-			service.ws === workspaceId ? newIds[cursor++] : service.id,
-		);
+		// Reordering within a column: services are nested under their workspace on disk, so
+		// the reorder endpoint only ever needs this column's own ids.
 		const { error } = await api.api.services.reorder.patch({
-			ids: fullOrderedIds,
+			workspaceId,
+			ids: newIds,
 		});
 		if (error) console.error("Failed to reorder services", error);
 		await appState.refresh();

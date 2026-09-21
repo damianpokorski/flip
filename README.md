@@ -17,7 +17,7 @@
 - **Instant, no-reload switching** — every embeddable service's iframe stays mounted in the background, across every workspace; switching the active one is a pure visibility toggle, so embedded apps never reload, re-authenticate, or lose scroll position
 - **Workspaces** — group services into workspaces (each service belongs to exactly one); switch workspaces from the 46px spine on the left
 - **Press-`` ` ``-to-search HUD** — press the backtick key anywhere to raise a full-screen tile grid; press it again (or Escape) to dismiss. Type to filter every service across every workspace, arrow keys to move, Enter to open
-- **Human-editable config** — services, workspaces, and settings live in plain YAML files (`services.yaml`, `workspaces.yaml`, `config.yaml`), not a database. Hand-edit them directly, or use the Settings UI — both write to the same files, and comments you add are preserved
+- **Human-editable config** — services, workspaces, and settings all live in one plain YAML file (`config.yaml`, services nested under the workspace they belong to), not a database. Hand-edit it directly, or use the Settings UI — both write to the same file, and comments you add are preserved
 - **Live sync** — changes made anywhere (the Settings UI, another browser tab, or a hand-edited YAML file) push to every open view instantly over SSE
 - **Latency-aware health checks** — each service is periodically checked against its own URL (or a separate health-check URL if you set one) and an "OK codes" list; status is a real latency reading — fast / ok / slow / down — not just up/down
 - **Add-service probing** — paste a URL and FLIP checks reachability, reads the page title, and detects whether the service refuses to be embedded (`X-Frame-Options`/CSP), auto-suggesting "open in a new tab" (or, if the embedded proxy below is configured, staying embedded via the proxy instead) when it does
@@ -40,7 +40,9 @@ docker run -d --name flip -p 80:80 -v flip-data:/data ghcr.io/damianpokorski/fli
 
 Pin a specific version (e.g. `ghcr.io/damianpokorski/flip:1.4.0`) instead of `latest` if you want reproducible upgrades — see [Releases](https://github.com/damianpokorski/flip/releases) for the changelog.
 
-The data directory (`services.yaml`, `workspaces.yaml`, `config.yaml`, and an empty `sites/` folder ready for [locally-hosted static sites](#hosting-local-static-sites), all inside the `flip-data` volume) is created automatically on first boot, with one example service and one workspace — no separate setup step needed. FLIP is reachable at a single address, `http://localhost`; everything — the web UI, the API, and per-service subdomains if you configure them — is served through FLIP's own embedded proxy, so there's nothing else to expose.
+The data directory (`config.yaml`, and an empty `sites/` folder ready for [locally-hosted static sites](#hosting-local-static-sites), all inside the `flip-data` volume) is created automatically on first boot, with one example service and one workspace — no separate setup step needed. FLIP is reachable at a single address, `http://localhost`; everything — the web UI, the API, and per-service subdomains if you configure them — is served through FLIP's own embedded proxy, so there's nothing else to expose.
+
+Upgrading from a version that stored `services.yaml`/`workspaces.yaml` separately? The next boot merges them into `config.yaml` automatically (workspace/service order and any comments you'd added are preserved) and removes the two old files — no action needed.
 
 If container logs show Caddy failing to bind its admin API (`listen tcp 127.0.0.1:2019: bind: address already in use` — most likely if you're running more than one FLIP container on the same network namespace), set the `CADDY_ADMIN_PORT` environment variable to a free port.
 
@@ -48,7 +50,7 @@ Want to run FLIP from source instead — for development, or to build the image 
 
 ### Editing config by hand
 
-Open `services.yaml` or `workspaces.yaml` (inside the `flip-data` volume, or `./data/` if bind-mounted) in an editor while FLIP is running — changes are picked up live and pushed to any open browser tab. Each field is documented with a comment in the generated file. CRUD actions taken through the Settings UI write back to the same files, preserving comments on entries you didn't touch. `Settings → Config` shows a live, read-only, syntax-colored view of the actual files on disk.
+Open `config.yaml` (inside the `flip-data` volume, or `./data/` if bind-mounted) in an editor while FLIP is running — changes are picked up live and pushed to any open browser tab. Each field is documented with a comment in the generated file, and each service is nested under the `workspaces` entry it belongs to. CRUD actions taken through the Settings UI write back to the same file, preserving comments on entries you didn't touch. `Settings → Config` shows a live, read-only, syntax-colored view of the actual file on disk.
 
 ---
 
@@ -147,7 +149,7 @@ Some things you want on the dashboard aren't a running service with a URL — ju
 2. In `Settings → Services → + Add service`, toggle **"Serve a local folder instead of a URL"** and pick `my-page` from the list.
 3. The tile behaves exactly like any other service — same HUD entry, same always-mounted iframe, same health check (down if the folder or its `index.html` goes missing).
 
-There's no upload form by design — mount or drop files in directly, the same way `services.yaml`/`workspaces.yaml` are meant to be hand-edited.
+There's no upload form by design — mount or drop files in directly, the same way `config.yaml` is meant to be hand-edited.
 
 ---
 

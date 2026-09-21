@@ -1,5 +1,4 @@
 import { Elysia, t } from "elysia";
-import { ServicesRepository } from "../db/ServicesRepository";
 import { WorkspacesRepository } from "../db/WorkspacesRepository";
 import { errorPlugin } from "../errors";
 import { WorkspacesService } from "../services/WorkspacesService";
@@ -15,21 +14,14 @@ const WorkspaceModel = t.Object({
 	label: t.String(),
 });
 
-const RawFileModel = t.Object({
-	content: t.String(),
-	updatedAt: t.String(),
-});
-
 const models = {
 	Workspace: WorkspaceModel,
 	WorkspaceBody: WorkspaceBodyModel,
 	WorkspaceList: t.Array(WorkspaceModel),
-	RawFile: RawFileModel,
 };
 
 const repository = new WorkspacesRepository();
-const servicesRepository = new ServicesRepository();
-const service = new WorkspacesService(repository, servicesRepository);
+const service = new WorkspacesService(repository);
 
 export const workspacesController = new Elysia({ prefix: "/workspaces" })
 	.use(errorPlugin)
@@ -37,13 +29,6 @@ export const workspacesController = new Elysia({ prefix: "/workspaces" })
 	.get("/", () => service.getAll(), {
 		response: "WorkspaceList",
 		detail: { summary: "List all workspaces", tags: ["workspaces"] },
-	})
-	.get("/raw", () => service.readRaw(), {
-		response: "RawFile",
-		detail: {
-			summary: "Get workspaces.yaml's live file text",
-			tags: ["workspaces"],
-		},
 	})
 	.patch("/reorder", ({ body }) => service.reorder(body.ids), {
 		body: t.Object({ ids: t.Array(t.String()) }),

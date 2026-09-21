@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { chmod, mkdir, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { isSeq } from "yaml";
 import { z } from "zod";
 
 const tmpDir = mkdtempSync(path.join(os.tmpdir(), "flip-fs-yaml-test-"));
@@ -295,6 +296,79 @@ describe("YamlFile.mutate", () => {
 		// Assert
 		const data = await file.read();
 		expect(data.map((item) => item.id).sort()).toEqual(["1", "2", "3", "4"]);
+	});
+});
+
+describe("YamlFile nested mutations", () => {
+	const GroupSchema = z.object({
+		id: z.string(),
+		items: z.array(ItemSchema).default([]),
+	});
+	const GroupsSchema = z.array(GroupSchema).default([]);
+	type Group = z.infer<typeof GroupSchema>;
+
+	const DEFAULT_GROUPS_YAML = `- id: a
+  items:
+    - id: "1"
+      name: One # keep me
+- id: b
+  items: []
+`;
+
+	function groupsFile() {
+		const fileName = `groups-${Math.random().toString(36).slice(2)}.yaml`;
+		const file = new YamlFile<Group[]>(
+			fileName,
+			GroupsSchema,
+			DEFAULT_GROUPS_YAML,
+		);
+		return file;
+	}
+
+	// The two mechanics services.ts/workspaces.ts rely on to nest services under a workspace
+	// (Document.addIn into a nested array, and moving a raw node between two nested arrays)
+	// have no other precedent in this codebase — verified here against a generic schema,
+	// isolated from the real facades that build on top of them.
+	test("mutate can append into a nested array via addIn, in block style even when the array started empty", async () => {
+		// Arrange
+		const file = groupsFile();
+		await file.ensureExists();
+
+		// Act
+		await file.mutate((doc) => {
+			const seq = doc.getIn([1, "items"], true);
+			if (isSeq(seq)) seq.flow = false;
+			doc.addIn([1, "items"], { id: "2", name: "Two" });
+		});
+		const data = await file.read();
+		const raw = await file.readRaw();
+
+		// Assert
+		expect(data[1]?.items).toEqual([{ id: "2", name: "Two" }]);
+		expect(raw.content).not.toContain("items: [");
+		expect(raw.content).toContain('    - id: "2"\n      name: Two\n');
+	});
+
+	test("mutate can move a raw node between two nested arrays while preserving its comment", async () => {
+		// Arrange
+		const file = groupsFile();
+		await file.ensureExists();
+
+		// Act
+		await file.mutate((doc) => {
+			const node = doc.getIn([0, "items", 0], true);
+			doc.deleteIn([0, "items", 0]);
+			const destSeq = doc.getIn([1, "items"], true);
+			if (isSeq(destSeq)) destSeq.flow = false;
+			doc.addIn([1, "items"], node);
+		});
+		const data = await file.read();
+		const raw = await file.readRaw();
+
+		// Assert
+		expect(data[0]?.items).toEqual([]);
+		expect(data[1]?.items).toEqual([{ id: "1", name: "One" }]);
+		expect(raw.content).toContain("# keep me");
 	});
 });
 

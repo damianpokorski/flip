@@ -7,24 +7,12 @@ import StatusDot from "../../../components/status/StatusDot.svelte";
 
 const api = createApi();
 
-let files = $state<Record<string, RawFile | null>>({
-	"services.yaml": null,
-	"workspaces.yaml": null,
-	"config.yaml": null,
-});
+let file = $state<RawFile | null>(null);
 
 onMount(async () => {
 	await appState.refresh();
-	const [services, workspaces, config] = await Promise.all([
-		api.api.services.raw.get(),
-		api.api.workspaces.raw.get(),
-		api.api.config.raw.get(),
-	]);
-	files = {
-		"services.yaml": services.error ? null : services.data,
-		"workspaces.yaml": workspaces.error ? null : workspaces.data,
-		"config.yaml": config.error ? null : config.data,
-	};
+	const { data, error } = await api.api.config.raw.get();
+	file = error ? null : data;
 });
 
 function classifyLine(line: string): string {
@@ -59,29 +47,27 @@ async function copy(content: string) {
 		<span class="ok">valid · {appState.services.length} services · {appState.workspaces.length} workspaces</span>
 	</div>
 
-	{#each Object.entries(files) as [filename, file] (filename)}
-		<section class="file-section">
-			<div class="section-head">
-				<span class="filename">{filename}</span>
-				<span class="spacer"></span>
-				{#if file}<span class="saved">saved {relativeTime(file.updatedAt)}</span>{/if}
-				<button type="button" class="copy-btn" disabled={!file} onclick={() => file && copy(file.content)}>Copy</button>
-			</div>
-			<div class="code-block">
-				{#if file}
-					{@const lines = file.content.split("\n")}
-					<div class="gutter">
-						{#each lines as _, i (i)}<span class="line-num">{i + 1}</span>{/each}
-					</div>
-					<div class="code">
-						{#each lines as line, i (i)}<span class="line" style:color={classifyLine(line)}>{line || " "}</span>{/each}
-					</div>
-				{:else}
-					<span class="loading">loading…</span>
-				{/if}
-			</div>
-		</section>
-	{/each}
+	<section class="file-section">
+		<div class="section-head">
+			<span class="filename">config.yaml</span>
+			<span class="spacer"></span>
+			{#if file}<span class="saved">saved {relativeTime(file.updatedAt)}</span>{/if}
+			<button type="button" class="copy-btn" disabled={!file} onclick={() => file && copy(file.content)}>Copy</button>
+		</div>
+		<div class="code-block">
+			{#if file}
+				{@const lines = file.content.split("\n")}
+				<div class="gutter">
+					{#each lines as _, i (i)}<span class="line-num">{i + 1}</span>{/each}
+				</div>
+				<div class="code">
+					{#each lines as line, i (i)}<span class="line" style:color={classifyLine(line)}>{line || " "}</span>{/each}
+				</div>
+			{:else}
+				<span class="loading">loading…</span>
+			{/if}
+		</div>
+	</section>
 </div>
 
 <style>
