@@ -1,9 +1,10 @@
 import { describe, expect, mock, test } from "bun:test";
 
 const getMock = mock();
+const updateMock = mock();
 const readRawMock = mock();
 mock.module("@flip/store", () => ({
-	configStore: { get: getMock, readRaw: readRawMock },
+	configStore: { get: getMock, update: updateMock, readRaw: readRawMock },
 }));
 
 const { ConfigRepository } = await import("./ConfigRepository");
@@ -15,6 +16,7 @@ describe("ConfigRepository", () => {
 			healthCheckTimeoutMs: 5000,
 			maxParallelFrameLoads: 3,
 			uiScale: 1,
+			theme: "catppuccin-mocha" as const,
 		};
 		getMock.mockResolvedValue(config);
 		const repo = new ConfigRepository();
@@ -25,6 +27,25 @@ describe("ConfigRepository", () => {
 		// Assert
 		expect(result).toBe(config);
 		expect(getMock).toHaveBeenCalled();
+	});
+
+	test("update() delegates to configStore.update()", async () => {
+		// Arrange
+		const updated = {
+			healthCheckTimeoutMs: 5000,
+			maxParallelFrameLoads: 3,
+			uiScale: 1,
+			theme: "nord" as const,
+		};
+		updateMock.mockResolvedValue(updated);
+		const repo = new ConfigRepository();
+
+		// Act
+		const result = await repo.update({ theme: "nord" });
+
+		// Assert
+		expect(result).toBe(updated);
+		expect(updateMock).toHaveBeenCalledWith({ theme: "nord" });
 	});
 
 	test("readRaw() delegates to configStore.readRaw()", async () => {

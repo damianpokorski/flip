@@ -23,6 +23,7 @@ describe("configStore", () => {
 			healthCheckTimeoutMs: 5000,
 			maxParallelFrameLoads: 3,
 			uiScale: 1,
+			theme: "catppuccin-mocha",
 		});
 	});
 
@@ -33,6 +34,14 @@ describe("configStore", () => {
 		// Assert
 		expect(updated.uiScale).toBe(1.25);
 		expect(updated.healthCheckTimeoutMs).toBe(5000);
+	});
+
+	test("update patches the theme", async () => {
+		// Act
+		const updated = await configStore.update({ theme: "nord" });
+
+		// Assert
+		expect(updated.theme).toBe("nord");
 	});
 
 	test("readRaw returns the live file text", async () => {

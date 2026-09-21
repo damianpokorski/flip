@@ -11,6 +11,10 @@ const { ConfigService } = await import("./ConfigService");
 function fakeRepo(config: Record<string, unknown>) {
 	return {
 		get: mock(async () => config),
+		update: mock(async (patch: Record<string, unknown>) => ({
+			...config,
+			...patch,
+		})),
 		readRaw: mock(async () => ({
 			content: "healthCheckTimeoutMs: 5000\n",
 			updatedAt: "2026-01-01T00:00:00.000Z",
@@ -97,6 +101,31 @@ describe("ConfigService.get", () => {
 			healthCheckTimeoutMs: 1234,
 			maxParallelFrameLoads: 7,
 			uiScale: 1.5,
+		});
+	});
+});
+
+describe("ConfigService.update", () => {
+	beforeEach(() => {
+		envState.PROXY_DOMAIN = undefined;
+		envState.NODE_ENV = "development";
+	});
+
+	test("passes the patch to the repository and re-enriches the result", async () => {
+		// Arrange
+		envState.PROXY_DOMAIN = "flip.home.lan";
+		const repo = fakeRepo({ theme: "catppuccin-mocha", uiScale: 1 });
+		// biome-ignore lint/suspicious/noExplicitAny: fake intentionally implements a subset
+		const service = new ConfigService(repo as any);
+
+		// Act
+		const result = await service.update({ theme: "nord" });
+
+		// Assert
+		expect(repo.update).toHaveBeenCalledWith({ theme: "nord" });
+		expect(result).toMatchObject({
+			theme: "nord",
+			proxyDomain: "flip.home.lan",
 		});
 	});
 });

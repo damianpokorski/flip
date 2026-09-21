@@ -92,6 +92,10 @@ $effect(() => {
 	);
 });
 
+$effect(() => {
+	document.documentElement.dataset.theme = appState.theme;
+});
+
 onMount(() => {
 	appState.refresh().then(openServiceFromUrl);
 	appState.connectSse();

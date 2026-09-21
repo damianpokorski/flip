@@ -30,6 +30,15 @@ import SettingsRow from "../../components/settings/SettingsRow.svelte";
 		/>
 		<SettingsRow
 			touch
+			glyph="◴"
+			glyphHue="var(--tile-peach)"
+			name="Appearance"
+			sub="colour palette"
+			meta={appState.theme}
+			onclick={() => goto("/settings/appearance")}
+		/>
+		<SettingsRow
+			touch
 			glyph="≡"
 			glyphHue="var(--tile-lavender)"
 			name="Config as code"

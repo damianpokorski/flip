@@ -1,3 +1,4 @@
+import type { Theme } from "@flip/store";
 import { browser } from "$app/environment";
 import { goto, replaceState } from "$app/navigation";
 import type { HealthStatus, ServiceData, WorkspaceData } from "./api";
@@ -47,6 +48,9 @@ class AppState {
 	// From config.yaml — scales the shell's own chrome via CSS zoom; 1 is neutral. Never
 	// applied to Frame's iframes. Hand-edit-only, no Settings UI control for this field.
 	uiScale = $state(1);
+	// From config.yaml — the shell's colour palette. Set via Settings → Appearance
+	// (setTheme), applied by +layout.svelte as a `data-theme` attribute on <html>.
+	theme = $state<Theme>("catppuccin-mocha");
 	// Internal scheduler bookkeeping — not read from templates, so plain (non-reactive) fields.
 	private loadingFrameIds = new Set<string>();
 	private pendingFrameIds: string[] = [];
@@ -129,6 +133,7 @@ class AppState {
 			this.proxyPort = configRes.data.proxyPort;
 			this.maxParallelFrameLoads = configRes.data.maxParallelFrameLoads;
 			this.uiScale = configRes.data.uiScale;
+			this.theme = configRes.data.theme;
 		}
 
 		if (
@@ -236,6 +241,21 @@ class AppState {
 			}
 		});
 		this.eventSource = source;
+	}
+
+	// Optimistic: flips the local value immediately so the shell repaints before the round
+	// trip resolves, then rolls back to the confirmed server value if the write failed.
+	async setTheme(theme: Theme) {
+		const previous = this.theme;
+		this.theme = theme;
+		const api = createApi();
+		const { data, error } = await api.api.config.patch({ theme });
+		if (error) {
+			console.error("Failed to update theme", error);
+			this.theme = previous;
+			return;
+		}
+		this.theme = data.theme;
 	}
 
 	openHud() {

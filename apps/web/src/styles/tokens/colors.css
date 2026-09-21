@@ -1,9 +1,48 @@
-/* FLIP runs on the Catppuccin Mocha palette (MIT). The base ramp below is Mocha
-   verbatim; everything under "semantic" is what product code should reference.
-   Only one theme exists today — dark. */
+/* FLIP ships nine palettes, selected via Settings → Appearance (persisted as `theme` in
+   config.yaml, applied as a `data-theme` attribute on <html> — see +layout.svelte). Every
+   palette is a complete, self-contained theme, not a light/dark pair toggled independently:
+   some upstream projects only publish one variant, so the "-dawn"/"-light"/"-lotus" suffixed
+   entries are the light companion where one exists. Keep the list in sync with THEMES in
+   packages/store/src/schemas/config.ts.
+
+   Each block below defines the same fixed set of semantic custom properties — surfaces, a
+   5-step ink ramp, one accent, one drag colour, four health colours, the twelve --tile-*
+   hues a service can pick for its mark (fixed role names inherited from Catppuccin's original
+   twelve — TILE_HUES in packages/store/src/schemas/service.ts — so a service's stored `hue`
+   renders sensibly under every palette even where that palette has fewer than twelve natural
+   accents), and the YAML syntax colours for Settings → Config. Nothing else may reference a
+   literal colour — always go through these names.
+
+   Alpha-tinted derivatives (hairline borders, accent/drag fills and lines, the HUD scrim) are
+   computed ONCE below via color-mix(), from whichever theme's semantic tokens are active, so
+   they never need restating per palette — this is the CSS analogue of the "shared thresholds
+   live in packages/store, not duplicated per-runtime" rule. */
 
 :root {
-	/* ── base ramp ── */
+	/* Borders are always the text colour at low alpha, never a grey. */
+	--border-hair: color-mix(in srgb, var(--text-1) 7%, transparent);
+	--border-soft: color-mix(in srgb, var(--text-1) 9%, transparent);
+	--border-mid: color-mix(in srgb, var(--text-1) 12%, transparent);
+	--border-strong: color-mix(in srgb, var(--text-1) 18%, transparent);
+	--border-dashed: color-mix(in srgb, var(--text-1) 16%, transparent);
+
+	--accent-fill: color-mix(in srgb, var(--accent) 16%, transparent);
+	--accent-fill-strong: color-mix(in srgb, var(--accent) 18%, transparent);
+	--accent-row: color-mix(in srgb, var(--accent) 14%, transparent);
+	--accent-row-quiet: color-mix(in srgb, var(--accent) 10%, transparent);
+	--accent-line: color-mix(in srgb, var(--accent) 45%, transparent);
+	--accent-line-strong: color-mix(in srgb, var(--accent) 50%, transparent);
+
+	--drag-fill: color-mix(in srgb, var(--drag) 18%, transparent);
+	--drag-line: color-mix(in srgb, var(--drag) 60%, transparent);
+
+	/* The mobile switcher sheet's own translucent scrim — see the surfaces note below. */
+	--bg-scrim: color-mix(in srgb, var(--bg-spine) 60%, transparent);
+}
+
+/* ── Catppuccin Mocha (MIT) — the original/default palette, dark only ── */
+:root,
+[data-theme="catppuccin-mocha"] {
 	--ctp-crust: #11111b;
 	--ctp-mantle: #181825;
 	--ctp-base: #1e1e2e;
@@ -16,8 +55,6 @@
 	--ctp-subtext-0: #a6adc8;
 	--ctp-subtext-1: #bac2de;
 	--ctp-text: #cdd6f4;
-
-	/* ── accents ── */
 	--ctp-rosewater: #f5e0dc;
 	--ctp-flamingo: #f2cdcd;
 	--ctp-pink: #f5c2e7;
@@ -32,32 +69,18 @@
 	--ctp-blue: #89b4fa;
 	--ctp-lavender: #b4befe;
 
-	/* ── semantic: surfaces ──
-	   Three depths only. The spine is the darkest thing on screen, the embedded
+	/* Three depths only. The spine is the darkest thing on screen, the embedded
 	   service view sits on the app background, panels sit between them. The HUD
 	   is a fully opaque foreground surface, not a translucent scrim — it fully
-	   replaces the view behind it rather than dimming through to it. The mobile
-	   switcher sheet is the one surface that *does* dim through: it sits over a
-	   still-visible Rest screen rather than replacing it, so it gets its own
-	   translucent scrim instead of reusing --bg-hud. */
+	   replaces the view behind it rather than dimming through to it. */
 	--bg-spine: var(--ctp-crust);
 	--bg-panel: var(--ctp-mantle);
 	--bg-app: var(--ctp-base);
 	--bg-tile: var(--ctp-base);
 	--bg-tile-inset: var(--ctp-crust);
 	--bg-hud: var(--ctp-crust);
-	--bg-scrim: rgba(17, 17, 27, 0.6);
 
-	/* ── semantic: hairlines ──
-	   Borders are always the text colour at low alpha, never a grey. */
-	--border-hair: rgba(205, 214, 244, 0.07);
-	--border-soft: rgba(205, 214, 244, 0.09);
-	--border-mid: rgba(205, 214, 244, 0.12);
-	--border-strong: rgba(205, 214, 244, 0.18);
-	--border-dashed: rgba(205, 214, 244, 0.16);
-
-	/* ── semantic: ink ──
-	   Five steps down from full text to the faintest gutter number. */
+	/* Five steps down from full text to the faintest gutter number. */
 	--text-1: var(--ctp-text);
 	--text-2: var(--ctp-subtext-1);
 	--text-3: var(--ctp-overlay-2);
@@ -66,35 +89,19 @@
 	--text-dim: var(--ctp-surface-2);
 	--text-faint: var(--ctp-surface-1);
 
-	/* ── semantic: accent ──
-	   Blue means "you are here" or "this is the primary action". It is the only
+	/* Blue means "you are here" or "this is the primary action". It is the only
 	   accent that carries state; every other hue is decorative or diagnostic. */
 	--accent: var(--ctp-blue);
-	--accent-fill: rgba(137, 180, 250, 0.16);
-	--accent-fill-strong: rgba(137, 180, 250, 0.18);
-	--accent-row: rgba(137, 180, 250, 0.14);
-	--accent-row-quiet: rgba(137, 180, 250, 0.1);
-	--accent-line: rgba(137, 180, 250, 0.45);
-	--accent-line-strong: rgba(137, 180, 250, 0.5);
-
 	/* Drag-and-drop uses mauve so it can never be confused with selection. */
 	--drag: var(--ctp-mauve);
-	--drag-fill: rgba(203, 166, 247, 0.18);
-	--drag-line: rgba(203, 166, 247, 0.6);
 
-	/* ── semantic: health ──
-	   Latency buckets. Under 60ms fast, under 250ms ok, above that slow, no
-	   response at all is down. These four are the whole status vocabulary —
-	   kept in sync with packages/store/src/health-bucket.ts's thresholds. */
+	/* Latency buckets. Under 60ms fast, under 250ms ok, above that slow, no
+	   response at all is down. Kept in sync with health-bucket.ts's thresholds. */
 	--health-fast: var(--ctp-green);
 	--health-ok: var(--ctp-yellow);
 	--health-slow: var(--ctp-peach);
 	--health-down: var(--ctp-red);
 
-	/* ── semantic: service tile hues ──
-	   A service picks one of these for its two-letter tile. Order is the order
-	   offered in the colour picker. Keep in sync with TILE_HUES in
-	   packages/store/src/schemas/service.ts. */
 	--tile-sapphire: var(--ctp-sapphire);
 	--tile-blue: var(--ctp-blue);
 	--tile-mauve: var(--ctp-mauve);
@@ -108,11 +115,553 @@
 	--tile-flamingo: var(--ctp-flamingo);
 	--tile-rosewater: var(--ctp-rosewater);
 
-	/* ── semantic: YAML syntax (Settings → Config) ── */
 	--code-key-top: var(--ctp-sky);
 	--code-key: var(--ctp-text);
 	--code-value: var(--ctp-yellow);
 	--code-list: var(--ctp-green);
 	--code-inline: var(--ctp-subtext-0);
 	--code-gutter: var(--ctp-surface-1);
+}
+
+/* ── Rosé Pine (MIT) — muted, moody. Only six real accents (love/gold/rose/pine/
+   foam/iris), so several of the twelve tile roles below deliberately reuse one —
+   that restraint is the palette's whole character, not a gap. Rosé Pine has no
+   canonical green either; "fast"/"green" roles use pine (its own ANSI-green
+   mapping) rather than importing an off-palette hue. ── */
+[data-theme="rose-pine"] {
+	--rp-base: #191724;
+	--rp-surface: #1f1d2e;
+	--rp-overlay: #26233a;
+	--rp-muted: #6e6a86;
+	--rp-subtle: #908caa;
+	--rp-text: #e0def4;
+	--rp-love: #eb6f92;
+	--rp-gold: #f6c177;
+	--rp-rose: #ebbcba;
+	--rp-pine: #31748f;
+	--rp-foam: #9ccfd8;
+	--rp-iris: #c4a7e7;
+	--rp-highlight-low: #21202e;
+	--rp-highlight-med: #403d52;
+	--rp-highlight-high: #524f67;
+
+	--bg-spine: var(--rp-base);
+	--bg-panel: var(--rp-surface);
+	--bg-app: var(--rp-overlay);
+	--bg-tile: var(--rp-overlay);
+	--bg-tile-inset: var(--rp-base);
+	--bg-hud: var(--rp-base);
+
+	--text-1: var(--rp-text);
+	--text-2: var(--rp-subtle);
+	--text-3: var(--rp-muted);
+	--text-4: var(--rp-highlight-high);
+	--text-5: var(--rp-highlight-med);
+	--text-dim: var(--rp-highlight-med);
+	--text-faint: var(--rp-highlight-low);
+
+	--accent: var(--rp-foam);
+	--drag: var(--rp-iris);
+
+	--health-fast: var(--rp-pine);
+	--health-ok: var(--rp-gold);
+	--health-slow: var(--rp-rose);
+	--health-down: var(--rp-love);
+
+	--tile-sapphire: var(--rp-pine);
+	--tile-blue: var(--rp-foam);
+	--tile-mauve: var(--rp-iris);
+	--tile-green: var(--rp-pine);
+	--tile-yellow: var(--rp-gold);
+	--tile-peach: var(--rp-rose);
+	--tile-pink: var(--rp-love);
+	--tile-teal: var(--rp-foam);
+	--tile-sky: var(--rp-foam);
+	--tile-lavender: var(--rp-iris);
+	--tile-flamingo: var(--rp-rose);
+	--tile-rosewater: var(--rp-rose);
+
+	--code-key-top: var(--rp-pine);
+	--code-key: var(--rp-text);
+	--code-value: var(--rp-gold);
+	--code-list: var(--rp-foam);
+	--code-inline: var(--rp-subtle);
+	--code-gutter: var(--rp-muted);
+}
+
+/* ── Rosé Pine Dawn (MIT) — the official light companion to Rosé Pine. ── */
+[data-theme="rose-pine-dawn"] {
+	--rpd-base: #faf4ed;
+	--rpd-surface: #fffaf3;
+	--rpd-overlay: #f2e9e1;
+	--rpd-muted: #9893a5;
+	--rpd-subtle: #797593;
+	--rpd-text: #575279;
+	--rpd-love: #b4637a;
+	--rpd-gold: #ea9d34;
+	--rpd-rose: #d7827e;
+	--rpd-pine: #286983;
+	--rpd-foam: #56949f;
+	--rpd-iris: #907aa9;
+	--rpd-highlight-low: #f4ede8;
+	--rpd-highlight-med: #dfdad9;
+	--rpd-highlight-high: #cecacd;
+
+	/* Surface is the brightest of the three in Dawn (unlike the dark variant) — overlay
+	   is the most muted, so it takes the spine/inset/hud role instead of base. */
+	--bg-spine: var(--rpd-overlay);
+	--bg-panel: var(--rpd-base);
+	--bg-app: var(--rpd-surface);
+	--bg-tile: var(--rpd-surface);
+	--bg-tile-inset: var(--rpd-overlay);
+	--bg-hud: var(--rpd-overlay);
+
+	--text-1: var(--rpd-text);
+	--text-2: var(--rpd-subtle);
+	--text-3: var(--rpd-muted);
+	--text-4: var(--rpd-highlight-high);
+	--text-5: var(--rpd-highlight-med);
+	--text-dim: var(--rpd-highlight-med);
+	--text-faint: var(--rpd-highlight-low);
+
+	--accent: var(--rpd-foam);
+	--drag: var(--rpd-iris);
+
+	--health-fast: var(--rpd-pine);
+	--health-ok: var(--rpd-gold);
+	--health-slow: var(--rpd-rose);
+	--health-down: var(--rpd-love);
+
+	--tile-sapphire: var(--rpd-pine);
+	--tile-blue: var(--rpd-foam);
+	--tile-mauve: var(--rpd-iris);
+	--tile-green: var(--rpd-pine);
+	--tile-yellow: var(--rpd-gold);
+	--tile-peach: var(--rpd-rose);
+	--tile-pink: var(--rpd-love);
+	--tile-teal: var(--rpd-foam);
+	--tile-sky: var(--rpd-foam);
+	--tile-lavender: var(--rpd-iris);
+	--tile-flamingo: var(--rpd-rose);
+	--tile-rosewater: var(--rpd-rose);
+
+	--code-key-top: var(--rpd-pine);
+	--code-key: var(--rpd-text);
+	--code-value: var(--rpd-gold);
+	--code-list: var(--rpd-foam);
+	--code-inline: var(--rpd-subtle);
+	--code-gutter: var(--rpd-muted);
+}
+
+/* ── Tokyo Night (Apache-2.0, folke/tokyonight.nvim) — cool blues/purples, neon accents. ── */
+[data-theme="tokyo-night"] {
+	--tn-bg-dark: #16161e;
+	--tn-bg: #1a1b26;
+	--tn-bg-highlight: #292e42;
+	--tn-terminal-black: #414868;
+	--tn-fg: #c0caf5;
+	--tn-fg-dark: #a9b1d6;
+	--tn-fg-gutter: #3b4261;
+	--tn-dark3: #545c7e;
+	--tn-dark5: #737aa2;
+	--tn-comment: #565f89;
+	--tn-blue: #7aa2f7;
+	--tn-blue2: #0db9d7;
+	--tn-cyan: #7dcfff;
+	--tn-purple: #9d7cd8;
+	--tn-magenta: #bb9af7;
+	--tn-magenta2: #ff007c;
+	--tn-red: #f7768e;
+	--tn-red1: #db4b4b;
+	--tn-orange: #ff9e64;
+	--tn-yellow: #e0af68;
+	--tn-green: #9ece6a;
+	--tn-green1: #73daca;
+	--tn-teal: #1abc9c;
+
+	--bg-spine: var(--tn-bg-dark);
+	--bg-panel: var(--tn-bg);
+	--bg-app: var(--tn-bg-highlight);
+	--bg-tile: var(--tn-bg-highlight);
+	--bg-tile-inset: var(--tn-bg-dark);
+	--bg-hud: var(--tn-bg-dark);
+
+	--text-1: var(--tn-fg);
+	--text-2: var(--tn-fg-dark);
+	--text-3: var(--tn-dark5);
+	--text-4: var(--tn-comment);
+	--text-5: var(--tn-dark3);
+	--text-dim: var(--tn-terminal-black);
+	--text-faint: var(--tn-fg-gutter);
+
+	--accent: var(--tn-blue);
+	--drag: var(--tn-magenta);
+
+	--health-fast: var(--tn-green);
+	--health-ok: var(--tn-yellow);
+	--health-slow: var(--tn-orange);
+	--health-down: var(--tn-red);
+
+	--tile-sapphire: var(--tn-blue2);
+	--tile-blue: var(--tn-blue);
+	--tile-mauve: var(--tn-purple);
+	--tile-green: var(--tn-green);
+	--tile-yellow: var(--tn-yellow);
+	--tile-peach: var(--tn-orange);
+	--tile-pink: var(--tn-magenta2);
+	--tile-teal: var(--tn-teal);
+	--tile-sky: var(--tn-cyan);
+	--tile-lavender: var(--tn-magenta);
+	--tile-flamingo: var(--tn-red1);
+	--tile-rosewater: var(--tn-green1);
+
+	--code-key-top: var(--tn-cyan);
+	--code-key: var(--tn-fg);
+	--code-value: var(--tn-yellow);
+	--code-list: var(--tn-green);
+	--code-inline: var(--tn-fg-dark);
+	--code-gutter: var(--tn-comment);
+}
+
+/* ── Tokyo Night Light — adapted for FLIP's token set from tokyonight.nvim's "Day" style;
+   background/ink values are close to upstream, accent hues are re-darkened here for contrast
+   on a light ground rather than scraped byte-for-byte — check upstream if you need 1:1 parity. ── */
+[data-theme="tokyo-night-light"] {
+	--tnl-bg: #e1e2e7;
+	--tnl-bg-dark: #d5d6db;
+	--tnl-bg-highlight: #c4c8da;
+	--tnl-fg: #343b58;
+	--tnl-fg-dark: #4c505e;
+	--tnl-comment: #9699a3;
+	--tnl-blue: #34548a;
+	--tnl-cyan: #0f4b6e;
+	--tnl-sky: #4d6fa8;
+	--tnl-teal: #0f6e5c;
+	--tnl-green: #485e30;
+	--tnl-yellow: #8f5e15;
+	--tnl-orange: #965027;
+	--tnl-red: #8c4351;
+	--tnl-magenta2: #a13d78;
+	--tnl-purple: #5a4a78;
+	--tnl-violet: #6b5a95;
+	--tnl-flamingo: #a15a45;
+	--tnl-rosewater: #b98a86;
+
+	--bg-spine: var(--tnl-bg-highlight);
+	--bg-panel: var(--tnl-bg-dark);
+	--bg-app: var(--tnl-bg);
+	--bg-tile: var(--tnl-bg);
+	--bg-tile-inset: var(--tnl-bg-highlight);
+	--bg-hud: var(--tnl-bg-highlight);
+
+	--text-1: var(--tnl-fg);
+	--text-2: var(--tnl-fg-dark);
+	--text-3: var(--tnl-comment);
+	--text-4: color-mix(in srgb, var(--tnl-comment) 70%, var(--tnl-bg-dark));
+	--text-5: color-mix(in srgb, var(--tnl-comment) 40%, var(--tnl-bg-dark));
+	--text-dim: var(--tnl-bg-dark);
+	--text-faint: color-mix(in srgb, var(--tnl-bg-dark) 60%, var(--tnl-bg));
+
+	--accent: var(--tnl-blue);
+	--drag: var(--tnl-purple);
+
+	--health-fast: var(--tnl-green);
+	--health-ok: var(--tnl-yellow);
+	--health-slow: var(--tnl-orange);
+	--health-down: var(--tnl-red);
+
+	--tile-sapphire: var(--tnl-cyan);
+	--tile-blue: var(--tnl-blue);
+	--tile-mauve: var(--tnl-purple);
+	--tile-green: var(--tnl-green);
+	--tile-yellow: var(--tnl-yellow);
+	--tile-peach: var(--tnl-orange);
+	--tile-pink: var(--tnl-magenta2);
+	--tile-teal: var(--tnl-teal);
+	--tile-sky: var(--tnl-sky);
+	--tile-lavender: var(--tnl-violet);
+	--tile-flamingo: var(--tnl-flamingo);
+	--tile-rosewater: var(--tnl-rosewater);
+
+	--code-key-top: var(--tnl-cyan);
+	--code-key: var(--tnl-fg);
+	--code-value: var(--tnl-yellow);
+	--code-list: var(--tnl-green);
+	--code-inline: var(--tnl-fg-dark);
+	--code-gutter: var(--tnl-comment);
+}
+
+/* ── Kanagawa Wave (MIT, rebelot/kanagawa.nvim) — warm, earthy, low-contrast. ── */
+[data-theme="kanagawa"] {
+	--kg-sumi-ink0: #16161d;
+	--kg-sumi-ink4: #2a2a37;
+	--kg-sumi-ink5: #363646;
+	--kg-sumi-ink6: #54546d;
+	--kg-wave2: #2d4f67;
+	--kg-fuji-white: #dcd7ba;
+	--kg-fuji-gray: #727169;
+	--kg-old-white: #c8c093;
+	--kg-katana-gray: #717c7c;
+	--kg-dragon-blue: #658594;
+	--kg-crystal-blue: #7e9cd8;
+	--kg-spring-blue: #7fb4ca;
+	--kg-spring-green: #98bb6c;
+	--kg-spring-violet2: #9cabca;
+	--kg-carp-yellow: #e6c384;
+	--kg-surimi-orange: #ffa066;
+	--kg-sakura-pink: #d27e99;
+	--kg-wave-aqua2: #7aa89f;
+	--kg-wave-red: #e46876;
+	--kg-oni-violet: #957fb8;
+	--kg-samurai-red: #e82424;
+
+	--bg-spine: var(--kg-sumi-ink0);
+	--bg-panel: var(--kg-wave2);
+	--bg-app: #1f1f28;
+	--bg-tile: #1f1f28;
+	--bg-tile-inset: var(--kg-sumi-ink0);
+	--bg-hud: var(--kg-sumi-ink0);
+
+	--text-1: var(--kg-fuji-white);
+	--text-2: var(--kg-old-white);
+	--text-3: var(--kg-fuji-gray);
+	--text-4: var(--kg-katana-gray);
+	--text-5: var(--kg-sumi-ink6);
+	--text-dim: var(--kg-sumi-ink5);
+	--text-faint: var(--kg-sumi-ink4);
+
+	--accent: var(--kg-crystal-blue);
+	--drag: var(--kg-oni-violet);
+
+	--health-fast: var(--kg-spring-green);
+	--health-ok: var(--kg-carp-yellow);
+	--health-slow: var(--kg-surimi-orange);
+	--health-down: var(--kg-samurai-red);
+
+	--tile-sapphire: var(--kg-dragon-blue);
+	--tile-blue: var(--kg-crystal-blue);
+	--tile-mauve: var(--kg-oni-violet);
+	--tile-green: var(--kg-spring-green);
+	--tile-yellow: var(--kg-carp-yellow);
+	--tile-peach: var(--kg-surimi-orange);
+	--tile-pink: var(--kg-sakura-pink);
+	--tile-teal: var(--kg-wave-aqua2);
+	--tile-sky: var(--kg-spring-blue);
+	--tile-lavender: var(--kg-spring-violet2);
+	--tile-flamingo: var(--kg-wave-red);
+	--tile-rosewater: var(--kg-old-white);
+
+	--code-key-top: var(--kg-spring-blue);
+	--code-key: var(--kg-fuji-white);
+	--code-value: var(--kg-carp-yellow);
+	--code-list: var(--kg-spring-green);
+	--code-inline: var(--kg-old-white);
+	--code-gutter: var(--kg-fuji-gray);
+}
+
+/* ── Kanagawa Lotus (light) — adapted for FLIP: a warm-paper/dark-ink companion in the Lotus
+   spirit, built by re-darkening Wave's accents for contrast on cream rather than scraped from
+   upstream Lotus hex values — check upstream if you want 1:1 parity. ── */
+[data-theme="kanagawa-lotus"] {
+	--kgl-paper-deep: #e5ddbe;
+	--kgl-paper-mid: #f0ead3;
+	--kgl-paper-light: #f8f4e6;
+	--kgl-ink1: #43436c;
+	--kgl-ink2: #545464;
+	--kgl-ink3: #766b90;
+	--kgl-ink4: #8a8980;
+	--kgl-ink5: #a6a086;
+	--kgl-blue: #4d699b;
+	--kgl-violet: #6e5f95;
+	--kgl-green: #6f894c;
+	--kgl-yellow: #a37a1f;
+	--kgl-orange: #b8562b;
+	--kgl-red: #b8332f;
+	--kgl-pink: #a85a72;
+	--kgl-teal: #3f766d;
+	--kgl-sapphire: #4a6270;
+	--kgl-sky: #5f7fa8;
+	--kgl-lavender: #7c7a9e;
+	--kgl-flamingo: #a34e5c;
+	--kgl-rosewater: #a68a4a;
+
+	--bg-spine: var(--kgl-paper-deep);
+	--bg-panel: var(--kgl-paper-mid);
+	--bg-app: var(--kgl-paper-light);
+	--bg-tile: var(--kgl-paper-light);
+	--bg-tile-inset: var(--kgl-paper-deep);
+	--bg-hud: var(--kgl-paper-deep);
+
+	--text-1: var(--kgl-ink1);
+	--text-2: var(--kgl-ink2);
+	--text-3: var(--kgl-ink3);
+	--text-4: var(--kgl-ink4);
+	--text-5: var(--kgl-ink5);
+	--text-dim: color-mix(in srgb, var(--kgl-ink5) 60%, var(--kgl-paper-mid));
+	--text-faint: color-mix(
+		in srgb,
+		var(--kgl-paper-deep) 70%,
+		var(--kgl-paper-light)
+	);
+
+	--accent: var(--kgl-blue);
+	--drag: var(--kgl-violet);
+
+	--health-fast: var(--kgl-green);
+	--health-ok: var(--kgl-yellow);
+	--health-slow: var(--kgl-orange);
+	--health-down: var(--kgl-red);
+
+	--tile-sapphire: var(--kgl-sapphire);
+	--tile-blue: var(--kgl-blue);
+	--tile-mauve: var(--kgl-violet);
+	--tile-green: var(--kgl-green);
+	--tile-yellow: var(--kgl-yellow);
+	--tile-peach: var(--kgl-orange);
+	--tile-pink: var(--kgl-pink);
+	--tile-teal: var(--kgl-teal);
+	--tile-sky: var(--kgl-sky);
+	--tile-lavender: var(--kgl-lavender);
+	--tile-flamingo: var(--kgl-flamingo);
+	--tile-rosewater: var(--kgl-rosewater);
+
+	--code-key-top: var(--kgl-sky);
+	--code-key: var(--kgl-ink1);
+	--code-value: var(--kgl-yellow);
+	--code-list: var(--kgl-green);
+	--code-inline: var(--kgl-ink2);
+	--code-gutter: var(--kgl-ink4);
+}
+
+/* ── Nord (MIT, nordtheme.com) — icy, minimal, arctic blue. Only nine accents for twelve
+   tile roles and a naturally compressed "snow storm" text ramp — restraint is the point,
+   not a gap. Dark only; Nord has never published an official light variant. ── */
+[data-theme="nord"] {
+	--nord0: #2e3440;
+	--nord1: #3b4252;
+	--nord2: #434c5e;
+	--nord3: #4c566a;
+	--nord4: #d8dee9;
+	--nord5: #e5e9f0;
+	--nord6: #eceff4;
+	--nord7: #8fbcbb;
+	--nord8: #88c0d0;
+	--nord9: #81a1c1;
+	--nord10: #5e81ac;
+	--nord11: #bf616a;
+	--nord12: #d08770;
+	--nord13: #ebcb8b;
+	--nord14: #a3be8c;
+	--nord15: #b48ead;
+
+	--bg-spine: var(--nord0);
+	--bg-panel: var(--nord1);
+	--bg-app: var(--nord2);
+	--bg-tile: var(--nord2);
+	--bg-tile-inset: var(--nord0);
+	--bg-hud: var(--nord0);
+
+	--text-1: var(--nord6);
+	--text-2: var(--nord5);
+	--text-3: var(--nord4);
+	--text-4: var(--nord3);
+	--text-5: var(--nord3);
+	--text-dim: var(--nord2);
+	--text-faint: var(--nord1);
+
+	--accent: var(--nord8);
+	--drag: var(--nord15);
+
+	--health-fast: var(--nord14);
+	--health-ok: var(--nord13);
+	--health-slow: var(--nord12);
+	--health-down: var(--nord11);
+
+	--tile-sapphire: var(--nord10);
+	--tile-blue: var(--nord8);
+	--tile-mauve: var(--nord15);
+	--tile-green: var(--nord14);
+	--tile-yellow: var(--nord13);
+	--tile-peach: var(--nord12);
+	--tile-pink: var(--nord15);
+	--tile-teal: var(--nord7);
+	--tile-sky: var(--nord9);
+	--tile-lavender: var(--nord9);
+	--tile-flamingo: var(--nord12);
+	--tile-rosewater: var(--nord4);
+
+	--code-key-top: var(--nord9);
+	--code-key: var(--nord6);
+	--code-value: var(--nord13);
+	--code-list: var(--nord14);
+	--code-inline: var(--nord4);
+	--code-gutter: var(--nord3);
+}
+
+/* ── Dracula (MIT, draculatheme.com) — punchy pinks/purples, only seven accents so several
+   tile roles reuse one, matching the palette's small, tight identity. Dracula's spec defines
+   two background tones (Background/Current Line), not three — the darker spine tone below
+   (#21222c) is the same "darker background" VS Code's own Dracula port uses for its sidebar;
+   the app/tile tone is interpolated between Background and Current Line. Dark only. ── */
+[data-theme="dracula"] {
+	--dracula-darker: #21222c;
+	--dracula-bg: #282a36;
+	--dracula-app: #2d2f3d;
+	--dracula-current-line: #44475a;
+	--dracula-faint: #363749;
+	--dracula-foreground: #f8f8f2;
+	--dracula-fg-2: #cfd0c8;
+	--dracula-fg-3: #a3a5ab;
+	--dracula-comment: #6272a4;
+	--dracula-comment-dark: #4d5673;
+	--dracula-cyan: #8be9fd;
+	--dracula-green: #50fa7b;
+	--dracula-orange: #ffb86c;
+	--dracula-pink: #ff79c6;
+	--dracula-purple: #bd93f9;
+	--dracula-red: #ff5555;
+	--dracula-yellow: #f1fa8c;
+
+	--bg-spine: var(--dracula-darker);
+	--bg-panel: var(--dracula-bg);
+	--bg-app: var(--dracula-app);
+	--bg-tile: var(--dracula-app);
+	--bg-tile-inset: var(--dracula-darker);
+	--bg-hud: var(--dracula-darker);
+
+	--text-1: var(--dracula-foreground);
+	--text-2: var(--dracula-fg-2);
+	--text-3: var(--dracula-fg-3);
+	--text-4: var(--dracula-comment);
+	--text-5: var(--dracula-comment-dark);
+	--text-dim: var(--dracula-current-line);
+	--text-faint: var(--dracula-faint);
+
+	--accent: var(--dracula-cyan);
+	--drag: var(--dracula-purple);
+
+	--health-fast: var(--dracula-green);
+	--health-ok: var(--dracula-yellow);
+	--health-slow: var(--dracula-orange);
+	--health-down: var(--dracula-red);
+
+	--tile-sapphire: var(--dracula-cyan);
+	--tile-blue: var(--dracula-cyan);
+	--tile-mauve: var(--dracula-purple);
+	--tile-green: var(--dracula-green);
+	--tile-yellow: var(--dracula-yellow);
+	--tile-peach: var(--dracula-orange);
+	--tile-pink: var(--dracula-pink);
+	--tile-teal: var(--dracula-cyan);
+	--tile-sky: var(--dracula-cyan);
+	--tile-lavender: var(--dracula-purple);
+	--tile-flamingo: var(--dracula-pink);
+	--tile-rosewater: var(--dracula-pink);
+
+	--code-key-top: var(--dracula-cyan);
+	--code-key: var(--dracula-foreground);
+	--code-value: var(--dracula-yellow);
+	--code-list: var(--dracula-green);
+	--code-inline: var(--dracula-comment);
+	--code-gutter: var(--dracula-comment-dark);
 }

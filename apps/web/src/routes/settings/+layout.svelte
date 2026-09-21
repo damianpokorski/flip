@@ -10,6 +10,7 @@ const { children } = $props();
 const TAB_ROUTES: Record<string, string> = {
 	Services: "/settings/services",
 	Workspaces: "/settings/workspaces",
+	Appearance: "/settings/appearance",
 	Shortcuts: "/settings/shortcuts",
 	Config: "/settings/config",
 };
@@ -17,11 +18,13 @@ const TAB_ROUTES: Record<string, string> = {
 const activeTab = $derived(
 	page.url.pathname.startsWith("/settings/workspaces")
 		? "Workspaces"
-		: page.url.pathname.startsWith("/settings/shortcuts")
-			? "Shortcuts"
-			: page.url.pathname.startsWith("/settings/config")
-				? "Config"
-				: "Services",
+		: page.url.pathname.startsWith("/settings/appearance")
+			? "Appearance"
+			: page.url.pathname.startsWith("/settings/shortcuts")
+				? "Shortcuts"
+				: page.url.pathname.startsWith("/settings/config")
+					? "Config"
+					: "Services",
 );
 
 // The mobile entry list (/settings itself) is its own screen with a back button, not a tab
@@ -50,7 +53,7 @@ const isMobileEntryList = $derived(
 				<span class="title">SETTINGS</span>
 			</div>
 			<TabBar
-				tabs={["Services", "Workspaces", "Shortcuts", "Config"]}
+				tabs={["Services", "Workspaces", "Appearance", "Shortcuts", "Config"]}
 				active={activeTab}
 				onselect={(name) => {
 					const path = TAB_ROUTES[name];

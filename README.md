@@ -25,6 +25,7 @@
 - **Real drag-and-drop** — reorder services, move a service to a different workspace, and reorder workspaces themselves, all by dragging
 - **Hide without deleting** — mark a service hidden to keep its config around without showing it in the switcher
 - **Host your own static sites** — mount a folder of pre-built HTML/CSS/JS onto the FLIP container and tile it like any other service, no separate web server or upload step needed
+- **Nine built-in colour palettes** — Catppuccin Mocha, Rosé Pine (+ Dawn), Tokyo Night (+ Light), Kanagawa (+ Lotus), Nord, and Dracula, switchable instantly from `Settings → Appearance`
 
 ---
 
@@ -173,6 +174,19 @@ Open `http://localhost/settings/services/add` (or click **+ Add service** from `
 Navigate to `http://localhost`. The **spine** (far left) switches workspaces; the **sidebar** lists the current workspace's services — click one to bring it to the front. Every embeddable service's iframe is already loaded in the background, so switching is instant.
 
 Press **`` ` ``** anywhere to raise the HUD: a full-screen tile grid of the current workspace (or, once you start typing, every service across every workspace). Arrow keys move, Enter opens, Escape or pressing `` ` `` again dismisses.
+
+### 4. Pick a colour palette
+
+`Settings → Appearance` switches the whole shell's colour palette instantly, for every browser pointed at this FLIP instance (it's saved to `config.yaml`'s `theme` field, not just this browser). Nine palettes are built in:
+
+- **Catppuccin Mocha** (dark, default)
+- **Rosé Pine** (dark) / **Rosé Pine Dawn** (light)
+- **Tokyo Night** (dark) / **Tokyo Night Light** (light)
+- **Kanagawa** (dark) / **Kanagawa Lotus** (light)
+- **Nord** (dark)
+- **Dracula** (dark)
+
+Nord and Dracula don't have an official light variant upstream, so they're offered dark-only.
 
 ---
 

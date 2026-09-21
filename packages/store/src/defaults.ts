@@ -7,6 +7,9 @@ export const DEFAULT_CONFIG_YAML = `# FLIP configuration — services, workspace
 #   uiScale                scales FLIP's own shell chrome (spine, sidebar, hud, settings, etc.)
 #                          via CSS zoom — 1 is neutral/no scaling. Never affects embedded
 #                          service iframe content. Accepts 0.5–2.
+#   theme                  the shell's colour palette — one of: catppuccin-mocha, rose-pine,
+#                          rose-pine-dawn, tokyo-night, tokyo-night-light, kanagawa,
+#                          kanagawa-lotus, nord, dracula. Set from Settings → Appearance.
 #
 # workspaces — groups of services shown together in the sidebar/HUD/spine, in the order
 # listed here (top to bottom on the spine):
@@ -41,6 +44,7 @@ export const DEFAULT_CONFIG_YAML = `# FLIP configuration — services, workspace
 healthCheckTimeoutMs: 5000
 maxParallelFrameLoads: 3
 uiScale: 1
+theme: catppuccin-mocha
 workspaces:
   - id: default
     name: DEFAULT
