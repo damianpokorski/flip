@@ -7,6 +7,7 @@ export * from "./codes";
 export { configStore } from "./config";
 export { dataDir } from "./fs-yaml";
 export * from "./health-bucket";
+export * from "./hue";
 export * from "./interval";
 export * from "./schemas/config";
 export * from "./schemas/service";

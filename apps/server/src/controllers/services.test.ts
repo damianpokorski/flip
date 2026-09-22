@@ -58,6 +58,7 @@ const sampleService = {
 	name: "Example",
 	mark: "EX",
 	hue: "sapphire",
+	hueAuto: false,
 	host: "example.com",
 	url: "https://example.com",
 	healthCheckUrl: null,

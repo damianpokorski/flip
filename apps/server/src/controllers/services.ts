@@ -41,7 +41,8 @@ const ServiceSourceModel = t.Union([t.Literal("external"), t.Literal("local")]);
 const ServiceBodyModel = t.Object({
 	name: t.String(),
 	mark: t.String(),
-	hue: TileHueModel,
+	// null means "auto" — ServicesService derives an even, name-hash-based hue when unset.
+	hue: t.Nullable(TileHueModel),
 	host: t.String(),
 	url: t.String(),
 	healthCheckUrl: t.Optional(t.Nullable(t.String())),
@@ -61,7 +62,9 @@ const ServiceModel = t.Object({
 	id: t.String(),
 	name: t.String(),
 	mark: t.String(),
+	// Always a concrete hue, resolved server-side even when unset on disk — see `hueAuto`.
 	hue: TileHueModel,
+	hueAuto: t.Boolean(),
 	host: t.String(),
 	url: t.String(),
 	healthCheckUrl: t.Nullable(t.String()),

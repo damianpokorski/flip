@@ -22,7 +22,9 @@ export const DEFAULT_CONFIG_YAML = `# FLIP configuration — services, workspace
 #   id                stable identifier, don't change once created
 #   name              display name, exactly as the upstream project writes it (e.g. "Jellyfin")
 #   mark              2-letter tile abbreviation shown instead of an icon, e.g. "NA"
-#   hue               tile colour: sapphire, blue, mauve, green, yellow, peach, pink, teal, sky, lavender, flamingo, rosewater
+#   hue               tile colour: sapphire, blue, mauve, green, yellow, peach, pink, teal, sky,
+#                     lavender, flamingo, rosewater — omit the line entirely (or set it to null)
+#                     to auto-pick one, evenly hashed from \`name\`
 #   host              short hostname shown in the UI, e.g. "nas.home.lan"
 #   url               full URL to embed/open (source: external) — ignored/overwritten by FLIP
 #                     for source: local, where it's derived as "/api/sites/<localSlug>/"

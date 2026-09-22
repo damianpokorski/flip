@@ -1,3 +1,4 @@
+import { hueFor } from "@flip/store/hue";
 import { v7 as uuidv7 } from "uuid";
 import type {
 	NewService,
@@ -30,6 +31,11 @@ export interface ServiceBody {
 
 const toApiService = (service: Service, health: HealthStatus) => ({
 	...service,
+	// `service.hue` is only ever unset (null/undefined) on disk — every consumer of the API
+	// response gets an always-concrete colour, resolved here rather than at every render site.
+	// `hueAuto` is what tells the settings form the colour was derived rather than picked.
+	hue: service.hue ?? hueFor(service.name),
+	hueAuto: service.hue == null,
 	health,
 });
 

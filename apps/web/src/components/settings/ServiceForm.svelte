@@ -31,7 +31,7 @@ let {
 	url = $bindable(""),
 	name = $bindable(""),
 	mark = $bindable(""),
-	hue = $bindable<TileHue>("sapphire"),
+	hue = $bindable<TileHue | null>(null),
 	host = $bindable(""),
 	healthCheckUrl = $bindable<string | null>(null),
 	source = $bindable<"external" | "local">("external"),
@@ -53,7 +53,7 @@ let {
 	url?: string;
 	name?: string;
 	mark?: string;
-	hue?: TileHue;
+	hue?: TileHue | null;
 	host?: string;
 	healthCheckUrl?: string | null;
 	source?: "external" | "local";
@@ -73,6 +73,9 @@ let {
 } = $props();
 
 let markTouched = $state(false);
+// Remembers the last concrete swatch pick so toggling Auto off restores it instead of
+// resetting to an arbitrary default.
+let lastPickedHue = $state<TileHue>(hue ?? "sapphire");
 let probing = $state(false);
 let probeResult = $state<ProbeResult | null>(null);
 let probeError = $state(false);
@@ -214,19 +217,27 @@ const probeHint = $derived.by(() => {
 		</div>
 		<div>
 			<FieldLabel>Colour</FieldLabel>
-			<div class="swatches">
+			<div class="swatches" class:disabled={hue === null} aria-disabled={hue === null}>
 				{#each TILE_HUES as h (h)}
 					<span
 						class="swatch"
 						style:background="var(--tile-{h})"
 						style:box-shadow={h === hue ? "var(--ring-swatch)" : "none"}
-						onclick={() => (hue = h)}
+						onclick={() => hue === null || ((hue = h), (lastPickedHue = h))}
 						role="button"
 						tabindex="0"
-						onkeydown={(e) => e.key === "Enter" && (hue = h)}
+						onkeydown={(e) => e.key === "Enter" && hue !== null && ((hue = h), (lastPickedHue = h))}
 					></span>
 				{/each}
 			</div>
+			<Toggle
+				bind:on={
+					() => hue === null,
+					(v: boolean) => (hue = v ? null : lastPickedHue)
+				}
+				label="Auto"
+				hint="evenly hashed from the name"
+			/>
 		</div>
 	</div>
 
@@ -344,6 +355,11 @@ const probeHint = $derived.by(() => {
 		display: flex;
 		gap: var(--sp-3);
 		flex-wrap: wrap;
+		margin-bottom: var(--sp-6);
+	}
+	.swatches.disabled {
+		opacity: 0.35;
+		pointer-events: none;
 	}
 	.swatch {
 		width: 16px;

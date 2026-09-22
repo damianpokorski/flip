@@ -114,6 +114,42 @@ describe("ServicesService local-source derivation", () => {
 	});
 });
 
+describe("ServicesService hue resolution", () => {
+	test("getAll resolves an unset hue to a hashed colour and flags it as auto", async () => {
+		// Arrange
+		const servicesRepo = fakeServicesRepo([
+			service({ id: "1", name: "Example", hue: null }),
+		]);
+		const workspacesRepo = fakeWorkspacesRepo();
+		// biome-ignore lint/suspicious/noExplicitAny: fakes intentionally implement a subset
+		const svc = new ServicesService(servicesRepo as any, workspacesRepo as any);
+
+		// Act
+		const result = await svc.getAll();
+		// biome-ignore lint/style/noNonNullAssertion: the repo above seeds exactly one service
+		const first = result[0]!;
+
+		// Assert
+		expect(first.hueAuto).toBe(true);
+		expect(first.hue).not.toBeNull();
+	});
+
+	test("getById reports hueAuto: false when a hue is explicitly stored", async () => {
+		// Arrange
+		const servicesRepo = fakeServicesRepo([service({ id: "1", hue: "mauve" })]);
+		const workspacesRepo = fakeWorkspacesRepo();
+		// biome-ignore lint/suspicious/noExplicitAny: fakes intentionally implement a subset
+		const svc = new ServicesService(servicesRepo as any, workspacesRepo as any);
+
+		// Act
+		const result = await svc.getById("1");
+
+		// Assert
+		expect(result.hueAuto).toBe(false);
+		expect(result.hue).toBe("mauve");
+	});
+});
+
 describe("ServicesService.getAll/getById", () => {
 	test("getAll maps each service through the health lookup", async () => {
 		// Arrange

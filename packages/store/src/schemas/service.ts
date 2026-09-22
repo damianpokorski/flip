@@ -33,7 +33,12 @@ export const ServiceBaseSchema = z.object({
 	id: z.string(),
 	name: z.string().min(1),
 	mark: z.string().regex(/^[A-Z0-9]{2}$/, "exactly 2 uppercase letters/digits"),
-	hue: TileHueSchema,
+	// Deliberately no `.default(...)` here, unlike the rest of this schema's optional fields —
+	// there's no single static default to fall back to. Omitted (hand-edited files) or explicit
+	// `null` (what the app writes when a user picks "auto" in the UI) both mean the same thing:
+	// let ServicesService derive an even, name-hash-based hue at read time (see
+	// `@flip/store/hue`'s `hueFor`) instead of storing one.
+	hue: TileHueSchema.nullable().optional(),
 	host: z.string().min(1),
 	// For source: "external" this is the full URL to embed/open. For source: "local" it's
 	// derived server-side (ServicesService) as "/api/sites/<localSlug>/" — a same-origin

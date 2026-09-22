@@ -16,7 +16,7 @@ let loaded = $state(false);
 let url = $state("");
 let name = $state("");
 let mark = $state("");
-let hue = $state<TileHue>("sapphire");
+let hue = $state<TileHue | null>(null);
 let host = $state("");
 let healthCheckUrl = $state<string | null>(null);
 let source = $state<"external" | "local">("external");
@@ -48,7 +48,9 @@ onMount(async () => {
 	url = service.url;
 	name = service.name;
 	mark = service.mark;
-	hue = service.hue;
+	// The API always resolves `hue` to a concrete colour — `hueAuto` is what tells us whether
+	// that colour was picked or derived, so the form can seed the Auto toggle correctly.
+	hue = service.hueAuto ? null : service.hue;
 	host = service.host;
 	healthCheckUrl = service.healthCheckUrl;
 	source = service.source;
