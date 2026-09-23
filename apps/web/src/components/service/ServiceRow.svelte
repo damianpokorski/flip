@@ -65,7 +65,7 @@ let {
 	}
 	.host {
 		font-family: var(--font-mono);
-		font-size: 8px;
+		font-size: var(--t-mono-3xs);
 		color: var(--text-5);
 	}
 </style>

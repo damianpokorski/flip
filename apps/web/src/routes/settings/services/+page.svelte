@@ -188,24 +188,23 @@ async function remove(id: string) {
 	}
 	.host {
 		font-family: var(--font-mono);
-		font-size: 8px;
+		font-size: var(--t-mono-3xs);
 		color: var(--text-5);
 	}
-	.col.ws {
-		width: 90px;
-		flex: none;
-		font-family: var(--font-display);
-		font-size: 10px;
-		letter-spacing: var(--track-wide);
-		color: var(--text-3);
-	}
+	.col.ws,
 	.col.codes,
 	.col.every {
-		width: 52px;
 		flex: none;
 		font-family: var(--font-mono);
 		font-size: var(--t-mono-xs);
 		color: var(--text-3);
+	}
+	.col.ws {
+		width: 90px;
+	}
+	.col.codes,
+	.col.every {
+		width: 52px;
 	}
 	.col.health {
 		flex: 1;

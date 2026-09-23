@@ -36,8 +36,8 @@ function registerFrame(node: HTMLIFrameElement, id: string) {
 // if a stale `proxyHeaders: true` is set on the service — fail-open to "works like today,"
 // never fail-closed to a broken iframe.
 function frameSrc(service: ServiceData): string {
-	if (service.proxyHeaders && appState.proxyDomain) {
-		return `http://${service.id}.${appState.proxyDomain}:${appState.proxyPort}/`;
+	if (service.proxyHeaders && service.proxyHost && appState.proxyDomain) {
+		return `http://${service.proxyHost}.${appState.proxyDomain}:${appState.proxyPort}/`;
 	}
 	return service.url;
 }

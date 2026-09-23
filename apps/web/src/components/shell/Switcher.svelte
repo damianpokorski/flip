@@ -169,8 +169,8 @@ let {
 		justify-content: flex-end;
 	}
 	.settings-link {
-		font-family: var(--font-mono);
-		font-size: var(--t-mono-2xs);
+		font-family: var(--font-display);
+		font-size: var(--t-label-xs);
 		color: var(--accent);
 		text-decoration: none;
 	}

@@ -57,6 +57,9 @@ class AppState {
 	private frameLoadTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 	private eventSource: EventSource | undefined;
+	// Whether the SSE stream has ever opened — a later `open` is therefore a *re*connect, e.g.
+	// after a server restart, which regenerates every proxied service's subdomain label.
+	private sseOpenedOnce = false;
 
 	get visibleServices(): ServiceData[] {
 		return this.services.filter((service) => !service.hidden);
@@ -230,6 +233,13 @@ class AppState {
 	connectSse() {
 		if (this.eventSource) return;
 		const source = new EventSource(`${resolveServerUrl()}/api/events`);
+		// EventSource reconnects on its own after the server (and its embedded Caddy) restarts.
+		// Re-fetching then picks up the new per-boot proxy labels, and each iframe's `src` is
+		// derived from them, so changed frames swap in place without remounting anything.
+		source.addEventListener("open", () => {
+			if (this.sseOpenedOnce) this.refresh();
+			this.sseOpenedOnce = true;
+		});
 		source.addEventListener("change", () => {
 			this.refresh();
 		});

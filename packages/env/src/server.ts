@@ -11,7 +11,10 @@ const DEFAULT_DATA_DIR = path.resolve(import.meta.dir, "../../../data");
 export const env = createEnv({
 	server: {
 		DATA_DIR: z.string().default(DEFAULT_DATA_DIR),
-		CORS_ORIGIN: z.url().default("http://localhost:5173"),
+		// Unset (the default) means: no CORS headers in production — the SPA is served same-origin
+		// through Caddy, so cross-origin access has no legitimate use — and Vite's dev origin
+		// (http://localhost:5173) in development, where the SPA and API are separate origins.
+		CORS_ORIGIN: z.url().optional(),
 		NODE_ENV: z
 			.enum(["development", "production", "test"])
 			.default("development"),
