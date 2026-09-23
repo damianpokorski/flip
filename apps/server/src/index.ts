@@ -38,13 +38,13 @@ process.on("SIGINT", shutdown);
 
 let fullstack = new Elysia({});
 
+// Production is same-origin (SPA and API both behind Caddy), so CORS is only attached there
+// when CORS_ORIGIN is set explicitly; dev falls back to Vite's origin.
+const corsOrigin =
+	env.CORS_ORIGIN ??
+	(env.NODE_ENV === "production" ? undefined : "http://localhost:5173");
 fullstack.use(
-	router.use(
-		cors({
-			origin: env.CORS_ORIGIN,
-			methods: "*",
-		}),
-	),
+	corsOrigin ? router.use(cors({ origin: corsOrigin, methods: "*" })) : router,
 );
 
 // Conditionally load static assets from a public dir if defined — the production Docker

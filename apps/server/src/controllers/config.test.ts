@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 const getMock = mock();
+const learnOriginMock = mock();
 const updateMock = mock();
 const readRawMock = mock();
 
@@ -12,6 +13,10 @@ mock.module("../services/ConfigService", () => ({
 		update = updateMock;
 		readRaw = readRawMock;
 	},
+}));
+// Same reason as above: ./services builds real repositories/health checks at module scope.
+mock.module("./services", () => ({
+	caddyProxyService: { learnOrigin: learnOriginMock },
 }));
 mock.module("../db/ConfigRepository", () => ({
 	ConfigRepository: class {},
@@ -30,6 +35,7 @@ const sampleConfig = {
 
 beforeEach(() => {
 	getMock.mockReset();
+	learnOriginMock.mockReset();
 	updateMock.mockReset();
 	readRawMock.mockReset();
 });
@@ -48,6 +54,30 @@ describe("GET /config", () => {
 		// Assert
 		expect(response.status).toBe(200);
 		expect(body).toEqual(sampleConfig);
+	});
+
+	test("learns the request's Host as an allowed frame ancestor before responding", async () => {
+		// Arrange
+		getMock.mockResolvedValue(sampleConfig);
+		const order: string[] = [];
+		learnOriginMock.mockImplementation(async () => {
+			order.push("learn");
+		});
+		getMock.mockImplementation(async () => {
+			order.push("get");
+			return sampleConfig;
+		});
+
+		// Act
+		await configController.handle(
+			new Request("http://flip.lan:8080/config", {
+				headers: { host: "flip.lan:8080" },
+			}),
+		);
+
+		// Assert
+		expect(learnOriginMock).toHaveBeenCalledWith("flip.lan:8080");
+		expect(order).toEqual(["learn", "get"]);
 	});
 });
 

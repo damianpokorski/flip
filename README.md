@@ -136,7 +136,14 @@ Some self-hosted apps send `X-Frame-Options`/`Content-Security-Policy` response 
 
 1. Set `PROXY_DOMAIN` (e.g. `flip.home.lan`) on the FLIP container, and create a **one-time wildcard DNS record** — `*.flip.home.lan` → the container's IP — on whatever DNS server your LAN already uses. This is the only network setup step; no per-app configuration is needed afterward.
 2. Nothing extra to map — FLIP's single published port (always `80` in the container) already carries this traffic too: `docker run ... -p 80:80 -e PROXY_DOMAIN=flip.home.lan flip`.
-3. On the service that refuses to embed, toggle **"Route through FLIP's header-stripping proxy"** in Settings → Services (add-service probing suggests this automatically when it detects the service isn't embeddable). FLIP now loads that service's iframe from `http://<service-id>.flip.home.lan/` instead of its real URL — Caddy reverse-proxies to the real service behind the scenes, stripping the headers that were blocking it.
+3. On the service that refuses to embed, toggle **"Route through FLIP's header-stripping proxy"** in Settings → Services (add-service probing suggests this automatically when it detects the service isn't embeddable). FLIP now loads that service's iframe from `http://<random-label>.flip.home.lan/` instead of its real URL — Caddy reverse-proxies to the real service behind the scenes, stripping the headers that were blocking it.
+
+**Hardening** — the per-service subdomains are unauthenticated relays, so FLIP narrows what it can (this is defence in depth for a trusted LAN, not access control — FLIP itself has no login):
+
+- The subdomain is a random 128-bit label regenerated on every boot (not the service id), so bookmarks to a proxied subdomain don't survive a restart; the open web UI notices the reconnect and swaps its frames over automatically.
+- The upstream's own framing headers are replaced with a `frame-ancestors` limited to the host you reached FLIP on, so other websites can't embed your services. FLIP learns that host from the `Host` header of its own `/api/config` requests — a LAN client can forge it, so it stops third-party sites, not a hostile LAN peer.
+- Opening a proxied subdomain directly as a page (browser `Sec-Fetch-Dest: document`) returns 403; only iframe loads pass. `curl` can forge the header, so this is a speed bump.
+- Proxied services must use an `http`/`https` URL, and `CORS_ORIGIN` is now unset (no CORS headers) in production unless you set it.
 
 **Plain HTTP only** — the embedded proxy doesn't terminate TLS. If FLIP's own origin is served over HTTPS by an external front-proxy, embedding a plain-HTTP iframe target will hit the browser's mixed-content block; this setup is intended for LAN-only/plain-HTTP deployments.
 

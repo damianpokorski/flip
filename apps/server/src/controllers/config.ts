@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import { ConfigRepository } from "../db/ConfigRepository";
 import { ConfigService } from "../services/ConfigService";
+import { caddyProxyService } from "./services";
 
 // Written as an explicit literal tuple (not THEMES.map(...)) so TypeScript infers a proper
 // tuple of distinct TLiteral schemas — mapping over the const array collapses to a generic
@@ -36,10 +37,20 @@ const service = new ConfigService(new ConfigRepository());
 
 export const configController = new Elysia({ prefix: "/config" })
 	.model({ Config: ConfigModel, RawFile: RawFileModel })
-	.get("/", () => service.get(), {
-		response: "Config",
-		detail: { summary: "Get app configuration", tags: ["config"] },
-	})
+	// The SPA calls this on every load before it builds any frame src, so it doubles as the
+	// place FLIP's own origin is learned for the proxied frames' `frame-ancestors` — and it
+	// awaits the resulting Caddy reload so frames never race a CSP that doesn't list them yet.
+	.get(
+		"/",
+		async ({ request }) => {
+			await caddyProxyService.learnOrigin(request.headers.get("host"));
+			return service.get();
+		},
+		{
+			response: "Config",
+			detail: { summary: "Get app configuration", tags: ["config"] },
+		},
+	)
 	.patch("/", ({ body }) => service.update(body), {
 		body: t.Object({ theme: ThemeModel }),
 		response: "Config",

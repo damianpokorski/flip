@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { BadRequestError, NotFoundError } from "../errors";
+import {
+	BadRequestError,
+	NotFoundError,
+	UnprocessableEntityError,
+} from "../errors";
 import { ServicesService } from "./ServicesService";
 
 function service(overrides: Partial<Record<string, unknown>> = {}) {
@@ -374,5 +378,82 @@ describe("ServicesService.reorder", () => {
 			BadRequestError,
 		);
 		expect(servicesRepo.reorder).not.toHaveBeenCalled();
+	});
+});
+
+describe("ServicesService proxied-url validation", () => {
+	test.each([["not a url"], ["ftp://nas.lan/share"]])(
+		"create rejects %p when proxyHeaders is on",
+		async (url) => {
+			// Arrange
+			const repo = fakeServicesRepo();
+			const svc = new ServicesService(
+				repo as never,
+				fakeWorkspacesRepo() as never,
+			);
+
+			// Act
+			const attempt = svc.create({ ...baseBody, url, proxyHeaders: true });
+
+			// Assert
+			await expect(attempt).rejects.toBeInstanceOf(UnprocessableEntityError);
+			expect(repo.create).not.toHaveBeenCalled();
+		},
+	);
+
+	test("update rejects a bad url when proxyHeaders is on", async () => {
+		// Arrange
+		const repo = fakeServicesRepo([service({ id: "1" })]);
+		const svc = new ServicesService(
+			repo as never,
+			fakeWorkspacesRepo() as never,
+		);
+
+		// Act
+		const attempt = svc.update("1", {
+			...baseBody,
+			url: "nope",
+			proxyHeaders: true,
+		});
+
+		// Assert
+		await expect(attempt).rejects.toBeInstanceOf(UnprocessableEntityError);
+		expect(repo.update).not.toHaveBeenCalled();
+	});
+
+	test("does not validate the url format when proxyHeaders is off", async () => {
+		// Arrange
+		const repo = fakeServicesRepo();
+		const svc = new ServicesService(
+			repo as never,
+			fakeWorkspacesRepo() as never,
+		);
+
+		// Act
+		const created = await svc.create({ ...baseBody, url: "nope" });
+
+		// Assert
+		expect(created.url).toBe("nope");
+	});
+
+	test("exposes the proxy label only for proxied services", async () => {
+		// Arrange
+		const repo = fakeServicesRepo([
+			service({ id: "p", proxyHeaders: true }),
+			service({ id: "q", proxyHeaders: false }),
+		]);
+		const svc = new ServicesService(
+			repo as never,
+			fakeWorkspacesRepo() as never,
+			undefined,
+			(id) => `label-${id}`,
+		);
+
+		// Act
+		const all = await svc.getAll();
+
+		// Assert
+		expect(all.find((x) => x.id === "p")?.proxyHost).toBe("label-p");
+		expect(all.find((x) => x.id === "q")?.proxyHost).toBeNull();
 	});
 });

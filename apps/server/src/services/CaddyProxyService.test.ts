@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	mock,
+	spyOn,
+	test,
+} from "bun:test";
 
 // Static imports are hoisted above mock.module(), so only the dynamically-imported
 // CaddyProxyService below sees this mocked env — mirrors HealthCheckService.test.ts's
@@ -229,6 +237,89 @@ describe("buildCaddyfile", () => {
 	});
 });
 
+describe("buildCaddyfile hardening", () => {
+	const base = {
+		mode: "prod" as const,
+		appPort: 3000,
+		proxyPort: 8080,
+		domain: "flip.lan",
+		adminPort: 2019,
+	};
+
+	test("uses labelFor's label as the subdomain instead of the service id", () => {
+		const caddyfile = buildCaddyfile({
+			...base,
+			services: [service({ id: "svc-a" })] as never,
+			labelFor: () => "abc123",
+		});
+
+		expect(caddyfile).toContain("http://abc123.flip.lan:8080 {");
+		expect(caddyfile).not.toContain("svc-a.flip.lan");
+	});
+
+	test("locks frame-ancestors to the learned hosts on both schemes", () => {
+		const caddyfile = buildCaddyfile({
+			...base,
+			services: [service()] as never,
+			frameAncestorHosts: ["flip.lan:8080"],
+		});
+
+		expect(caddyfile).toContain(
+			'header_down +Content-Security-Policy "frame-ancestors http://flip.lan:8080 https://flip.lan:8080"',
+		);
+	});
+
+	test("falls back to frame-ancestors 'none' before any origin is learned", () => {
+		const caddyfile = buildCaddyfile({
+			...base,
+			services: [service()] as never,
+		});
+
+		expect(caddyfile).toContain(
+			`header_down +Content-Security-Policy "frame-ancestors 'none'"`,
+		);
+	});
+
+	test("sets a default same-origin Referrer-Policy", () => {
+		const caddyfile = buildCaddyfile({
+			...base,
+			services: [service()] as never,
+		});
+
+		expect(caddyfile).toContain("header ?Referrer-Policy same-origin");
+	});
+
+	test("refuses top-level navigations via Sec-Fetch-Dest: document", () => {
+		const caddyfile = buildCaddyfile({
+			...base,
+			services: [service()] as never,
+		});
+
+		expect(caddyfile).toContain("@toplevel header Sec-Fetch-Dest document");
+		expect(caddyfile).toContain('respond @toplevel "Forbidden" 403');
+	});
+
+	test("skips a service with an unparseable or non-http url instead of throwing", () => {
+		const errorSpy = spyOn(console, "error").mockImplementation(() => {});
+		const services = [
+			service({ id: "bad", url: "not a url" }),
+			service({ id: "ftp", url: "ftp://nas.lan/share" }),
+			service({ id: "good", url: "https://good.lan" }),
+		];
+
+		const caddyfile = buildCaddyfile({
+			...base,
+			services: services as never,
+			labelFor: (s) => `label-${s.id}`,
+		});
+
+		expect(caddyfile).toContain("label-good.flip.lan");
+		expect(caddyfile).not.toContain("label-bad");
+		expect(caddyfile).not.toContain("label-ftp");
+		errorSpy.mockRestore();
+	});
+});
+
 describe("CaddyProxyService", () => {
 	const originalFetch = global.fetch;
 	const originalSpawn = Bun.spawn;
@@ -285,7 +376,94 @@ describe("CaddyProxyService", () => {
 		expect(requestedInit?.method).toBe("POST");
 		const headers = requestedInit?.headers as Record<string, string>;
 		expect(headers["Content-Type"]).toBe("text/caddyfile");
-		expect(requestedInit?.body).toContain("a.flip.lan:8080");
+		expect(requestedInit?.body).toContain(
+			`${proxy.labelFor("a")}.flip.lan:8080`,
+		);
+		expect(requestedInit?.body).not.toContain("a.flip.lan:8080");
+	});
+
+	test("labelFor() is stable within an instance, unique per service, and differs across instances", () => {
+		// Arrange
+		const repo = { findAll: async () => [] };
+		const first = new CaddyProxyService(repo as never);
+		const second = new CaddyProxyService(repo as never);
+
+		// Act
+		const a1 = first.labelFor("a");
+		const a2 = first.labelFor("a");
+		const b = first.labelFor("b");
+
+		// Assert
+		expect(a1).toBe(a2);
+		expect(a1).not.toBe(b);
+		expect(a1).toMatch(/^[0-9a-f]{32}$/);
+		expect(second.labelFor("a")).not.toBe(a1);
+	});
+
+	test("reload() drops labels for services that no longer exist", async () => {
+		// Arrange
+		envMock.PROXY_DOMAIN = "flip.lan";
+		global.fetch = (async () =>
+			new Response("", { status: 200 })) as unknown as typeof fetch;
+		const proxy = new CaddyProxyService({ findAll: async () => [] } as never);
+		const before = proxy.labelFor("gone");
+
+		// Act
+		await proxy.reload([]);
+
+		// Assert
+		expect(proxy.labelFor("gone")).not.toBe(before);
+	});
+
+	test("learnOrigin() reloads once with the new host in frame-ancestors, and dedupes repeats", async () => {
+		// Arrange
+		envMock.PROXY_DOMAIN = "flip.lan";
+		const bodies: string[] = [];
+		global.fetch = (async (_url: string, init?: RequestInit) => {
+			bodies.push(String(init?.body));
+			return new Response("", { status: 200 });
+		}) as unknown as typeof fetch;
+		const repo = { findAll: async () => [service({ id: "a" })] };
+		const proxy = new CaddyProxyService(repo as never);
+
+		// Act
+		await proxy.learnOrigin("Flip.LAN:8080");
+		await proxy.learnOrigin("flip.lan:8080");
+
+		// Assert
+		expect(bodies).toHaveLength(1);
+		expect(bodies[0]).toContain("frame-ancestors http://flip.lan:8080");
+	});
+
+	test("learnOrigin() ignores malformed hosts, proxied subdomains, and hosts beyond the cap", async () => {
+		// Arrange
+		envMock.PROXY_DOMAIN = "flip.lan";
+		const fetchSpy = mock(async () => new Response("", { status: 200 }));
+		global.fetch = fetchSpy as unknown as typeof fetch;
+		const proxy = new CaddyProxyService({ findAll: async () => [] } as never);
+
+		// Act
+		await proxy.learnOrigin(null);
+		await proxy.learnOrigin("evil host; { }");
+		await proxy.learnOrigin("abc.flip.lan:8080");
+		for (let i = 0; i < 20; i++) await proxy.learnOrigin(`h${i}.example`);
+
+		// Assert
+		expect(fetchSpy).toHaveBeenCalledTimes(8);
+	});
+
+	test("learnOrigin() accepts the bare PROXY_DOMAIN itself", async () => {
+		// Arrange
+		envMock.PROXY_DOMAIN = "flip.lan";
+		const fetchSpy = mock(async () => new Response("", { status: 200 }));
+		global.fetch = fetchSpy as unknown as typeof fetch;
+		const proxy = new CaddyProxyService({ findAll: async () => [] } as never);
+
+		// Act
+		await proxy.learnOrigin("flip.lan");
+
+		// Assert
+		expect(fetchSpy).toHaveBeenCalledTimes(1);
 	});
 
 	test("reload() targets CADDY_ADMIN_PORT when overridden from the default 2019", async () => {

@@ -76,6 +76,8 @@ const ServiceModel = t.Object({
 	every: t.String(),
 	target: t.Union([t.Literal("frame"), t.Literal("external")]),
 	proxyHeaders: t.Boolean(),
+	// Unguessable per-boot subdomain label; null when the service isn't proxied.
+	proxyHost: t.Nullable(t.String()),
 	hidden: t.Boolean(),
 	lazyLoad: t.Boolean(),
 	health: HealthModel,
@@ -105,8 +107,11 @@ export const healthCheckService = new HealthCheckService(repository);
 // Exported for the same reason as healthCheckService — apps/server/src/index.ts starts it
 // once at boot and hooks the services-file watcher to call reload() on every change.
 export const caddyProxyService = new CaddyProxyService(repository);
-const service = new ServicesService(repository, workspacesRepository, (id) =>
-	healthCheckService.getStatus(id),
+const service = new ServicesService(
+	repository,
+	workspacesRepository,
+	(id) => healthCheckService.getStatus(id),
+	(id) => caddyProxyService.labelFor(id),
 );
 const probeService = new ProbeService();
 
@@ -141,13 +146,22 @@ export const servicesController = new Elysia({ prefix: "/services" })
 	})
 	.post("/", ({ body }) => service.create(body), {
 		body: "ServiceBody",
-		response: { 200: "Service", 400: "BadRequestError" },
+		response: {
+			200: "Service",
+			400: "BadRequestError",
+			422: "UnprocessableEntityError",
+		},
 		detail: { summary: "Create a new service", tags: ["services"] },
 	})
 	.put("/:id", ({ params: { id }, body }) => service.update(id, body), {
 		params: t.Object({ id: t.String() }),
 		body: "ServiceBody",
-		response: { 200: "Service", 400: "BadRequestError", 404: "NotFoundError" },
+		response: {
+			200: "Service",
+			400: "BadRequestError",
+			404: "NotFoundError",
+			422: "UnprocessableEntityError",
+		},
 		detail: { summary: "Update a service", tags: ["services"] },
 	})
 	.delete("/:id", ({ params: { id } }) => service.delete(id), {

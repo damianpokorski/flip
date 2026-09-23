@@ -6,7 +6,11 @@ import type {
 	ServicesRepository,
 } from "../db/ServicesRepository";
 import type { WorkspacesRepository } from "../db/WorkspacesRepository";
-import { BadRequestError, NotFoundError } from "../errors";
+import {
+	BadRequestError,
+	NotFoundError,
+	UnprocessableEntityError,
+} from "../errors";
 import { notifyDataChanged } from "../events";
 import type { HealthStatus } from "./HealthCheckService";
 
@@ -29,8 +33,15 @@ export interface ServiceBody {
 	lazyLoad?: boolean;
 }
 
-const toApiService = (service: Service, health: HealthStatus) => ({
+const toApiService = (
+	service: Service,
+	health: HealthStatus,
+	proxyHost: string | null,
+) => ({
 	...service,
+	// Unguessable per-boot subdomain label for the header-stripping proxy — null when the service
+	// isn't proxied. The web app composes `<proxyHost>.<proxyDomain>:<proxyPort>` from it.
+	proxyHost,
 	// `service.hue` is only ever unset (null/undefined) on disk — every consumer of the API
 	// response gets an always-concrete colour, resolved here rather than at every render site.
 	// `hueAuto` is what tells the settings form the colour was derived rather than picked.
@@ -51,23 +62,31 @@ export class ServicesService {
 		private readonly workspaces: WorkspacesRepository,
 		private readonly getHealth: (id: string) => HealthStatus = () =>
 			UNKNOWN_HEALTH,
+		private readonly getProxyLabel: (id: string) => string = (id) => id,
 	) {}
+
+	private toApi(service: Service) {
+		return toApiService(
+			service,
+			this.getHealth(service.id),
+			service.proxyHeaders ? this.getProxyLabel(service.id) : null,
+		);
+	}
 
 	async getAll() {
 		const services = await this.repo.findAll();
-		return services.map((service) =>
-			toApiService(service, this.getHealth(service.id)),
-		);
+		return services.map((service) => this.toApi(service));
 	}
 
 	async getById(id: string) {
 		const service = await this.repo.findById(id);
 		if (!service) throw new NotFoundError("Service not found");
-		return toApiService(service, this.getHealth(id));
+		return this.toApi(service);
 	}
 
 	async create(data: ServiceBody) {
 		const normalized = this.normalizeSource(data);
+		this.assertValidProxyUrl(normalized);
 		await this.assertValidWorkspaceId(normalized.ws);
 		await this.assertPinAvailable(normalized.pin, null);
 		const newService: NewService = {
@@ -85,18 +104,19 @@ export class ServicesService {
 		};
 		const service = await this.repo.create(newService);
 		notifyDataChanged();
-		return toApiService(service, this.getHealth(service.id));
+		return this.toApi(service);
 	}
 
 	async update(id: string, data: ServiceBody) {
 		await this.getById(id);
 		const normalized = this.normalizeSource(data);
+		this.assertValidProxyUrl(normalized);
 		await this.assertValidWorkspaceId(normalized.ws);
 		await this.assertPinAvailable(normalized.pin, id);
 		const service = await this.repo.update(id, normalized);
 		notifyDataChanged();
 		// biome-ignore lint/style/noNonNullAssertion: getById above already confirmed existence
-		return toApiService(service!, this.getHealth(id));
+		return this.toApi(service!);
 	}
 
 	async delete(id: string) {
@@ -104,7 +124,7 @@ export class ServicesService {
 		const service = await this.repo.delete(id);
 		notifyDataChanged();
 		// biome-ignore lint/style/noNonNullAssertion: getById above already confirmed existence
-		return toApiService(service!, this.getHealth(id));
+		return this.toApi(service!);
 	}
 
 	async reorder(workspaceId: string, ids: string[]) {
@@ -124,9 +144,7 @@ export class ServicesService {
 		}
 		const services = await this.repo.reorder(workspaceId, ids);
 		notifyDataChanged();
-		return services.map((service) =>
-			toApiService(service, this.getHealth(service.id)),
-		);
+		return services.map((service) => this.toApi(service));
 	}
 
 	// source: "local" services don't take a user-typed url — it's derived from localSlug so
@@ -146,6 +164,25 @@ export class ServicesService {
 			url: `/api/sites/${localSlug}/`,
 			proxyHeaders: false,
 		};
+	}
+
+	// Scheme and format only — a homelab dashboard legitimately targets private LAN hosts, so no
+	// host filtering. Only proxied services matter: their url becomes a Caddy upstream.
+	private assertValidProxyUrl(data: ServiceBody) {
+		if (!data.proxyHeaders) return;
+		let protocol: string;
+		try {
+			protocol = new URL(data.url).protocol;
+		} catch {
+			throw new UnprocessableEntityError(
+				"url must be a valid absolute URL when proxyHeaders is enabled",
+			);
+		}
+		if (protocol !== "http:" && protocol !== "https:") {
+			throw new UnprocessableEntityError(
+				"url must use http or https when proxyHeaders is enabled",
+			);
+		}
 	}
 
 	private async assertValidWorkspaceId(ws: string) {

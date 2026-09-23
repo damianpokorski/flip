@@ -70,6 +70,7 @@ const sampleService = {
 	every: "30s",
 	target: "frame",
 	proxyHeaders: false,
+	proxyHost: null,
 	hidden: false,
 	lazyLoad: false,
 	health: { ms: null, lastCheckedAt: null, bucket: "down" },
