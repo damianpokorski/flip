@@ -35,6 +35,10 @@ export default defineConfig({
 			reuseExistingServer: false,
 			env: {
 				DATA_DIR: SHOWCASE_DATA_DIR,
+				// Makes the service form offer the header-stripping proxy toggle (it is hidden
+				// without a PROXY_DOMAIN), so the docs can show it. No service actually enables
+				// it, so nothing is routed through the proxy during the run.
+				PROXY_DOMAIN: "flip.home.lan",
 			},
 			stdout: "pipe",
 			stderr: "pipe",

@@ -1,0 +1,58 @@
+/* Maps Starlight's colour/font variables onto FLIP's design tokens
+   (apps/web/src/styles/tokens/colors.css). Dark is Catppuccin Mocha, FLIP's default palette;
+   light is Rose Pine Dawn, the closest FLIP light palette. Values are copied, not imported,
+   because the web app's token files are Svelte-app-scoped (theme is chosen by a data-theme
+   attribute there) - keep these in sync by hand if the palettes are ever retuned.
+
+   Blue (accent) means state in FLIP: links, current page, focus. Nothing else here uses it. */
+
+:root {
+	--sl-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+	--sl-font-mono: "Fira Code", ui-monospace, monospace;
+	--flip-font-display: "Oswald", "Barlow Condensed", sans-serif;
+
+	/* Dark: Catppuccin Mocha. */
+	--sl-color-white: #cdd6f4;
+	--sl-color-gray-1: #bac2de;
+	--sl-color-gray-2: #a6adc8;
+	--sl-color-gray-3: #7f849c;
+	--sl-color-gray-4: #45475a;
+	--sl-color-gray-5: #313244;
+	--sl-color-gray-6: #181825;
+	--sl-color-black: #1e1e2e;
+	--sl-color-accent-low: color-mix(in srgb, #89b4fa 16%, #1e1e2e);
+	--sl-color-accent: #74c7ec;
+	--sl-color-accent-high: #89b4fa;
+}
+
+:root[data-theme="light"] {
+	/* Light: Rose Pine Dawn. */
+	--sl-color-white: #575279;
+	--sl-color-gray-1: #625d80;
+	--sl-color-gray-2: #797593;
+	--sl-color-gray-3: #9893a5;
+	--sl-color-gray-4: #cecacd;
+	--sl-color-gray-5: #dfdad9;
+	--sl-color-gray-6: #f2e9e1;
+	--sl-color-gray-7: #f4ede8;
+	--sl-color-black: #fffaf3;
+	--sl-color-accent-low: color-mix(in srgb, #56949f 18%, #fffaf3);
+	--sl-color-accent: #56949f;
+	--sl-color-accent-high: #286983;
+}
+
+/* Names in Oswald, machine strings in Fira Code (Starlight's code blocks already use
+   --sl-font-mono). Prose stays in the system face: Oswald is condensed and tiring at
+   paragraph length, so it is reserved for headings and navigation labels. */
+h1,
+h2,
+h3,
+h4,
+.site-title,
+.sidebar-content summary,
+.sidebar-content .large,
+.right-sidebar h2 {
+	font-family: var(--flip-font-display);
+	font-weight: 500;
+	letter-spacing: 0.01em;
+}

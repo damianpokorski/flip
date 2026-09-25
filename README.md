@@ -6,7 +6,7 @@
 
 |                                              |                                  |                                                       |
 | -------------------------------------------- | -------------------------------- | ----------------------------------------------------- |
-| ![Dashboard](docs/screenshots/dashboard.png) | ![HUD](docs/screenshots/hud.png) | ![Settings — Services](docs/screenshots/services.png) |
+| ![Dashboard](apps/docs/src/assets/screenshots/dashboard.png) | ![HUD](apps/docs/src/assets/screenshots/hud.png) | ![Settings — Services](apps/docs/src/assets/screenshots/services.png) |
 
 <sub>Demo data, not a live install. Regenerate with `bun run docs:screenshots`.</sub>
 
@@ -194,6 +194,21 @@ Press **`` ` ``** anywhere to raise the HUD: a full-screen tile grid of the curr
 - **Dracula** (dark)
 
 Nord and Dracula don't have an official light variant upstream, so they're offered dark-only.
+
+---
+
+## A note on AI
+
+I'm a software engineer with a 9-to-5, and FLIP is my side-quest: a place to scratch my own itch and explore how I'd like to manage my self-hosted homelab. I build it with Claude as a copilot, and I'm upfront about that.
+
+What that means in practice:
+
+- **Claude does the boring bits.** Scaffolding, plumbing and tests get offloaded so I can spend my evenings on the fun problems instead of typing boilerplate.
+- **I'm still the one driving.** I decide what gets built, review what lands, and run it on my own network. It's my homelab, so it gets real use.
+- **Personal scale.** This is a hobby project for a trusted LAN, not a product with an SLA. Expect rough edges, and treat the security notes (no built-in auth, plain HTTP proxying) as meant.
+- **Conventions are written down.** [CLAUDE.md](./CLAUDE.md) is the rulebook Claude works from, and it's a good read if you want to see how the project is steered.
+
+If you'd rather not run AI-assisted software, that's completely fair. If you're curious, issues and PRs are welcome, and so are opinions on how to do this well.
 
 ---
 

@@ -8,3 +8,6 @@ data
 .env
 .env.*
 *.md
+.articles
+apps/docs/dist
+apps/docs/.astro

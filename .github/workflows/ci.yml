@@ -77,6 +77,10 @@ jobs:
       - name: Build
         run: bun run build
 
+      # Catches broken frontmatter/links in .articles/ before the Docs workflow deploys them.
+      - name: Build docs
+        run: bun run docs:build
+
       # --with-deps installs the Ubuntu system libraries Chromium needs. The repo's own
       # `test:e2e:install` script deliberately skips --with-deps (it also has to work in
       # sandboxes without passwordless sudo); GitHub-hosted runners have full sudo, and a
