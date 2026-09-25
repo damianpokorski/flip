@@ -51,17 +51,17 @@
 		"zod": "catalog:"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.5.11",
-		"@commitlint/cli": "^21.2.2",
-		"@commitlint/config-conventional": "^21.2.2",
+		"@biomejs/biome": "^2.5.14",
+		"@commitlint/cli": "^21.2.3",
+		"@commitlint/config-conventional": "^21.2.3",
 		"@flip/config": "workspace:*",
 		"@semantic-release/exec": "^7.1.0",
-		"@semantic-release/github": "^12.0.9",
+		"@semantic-release/github": "^12.0.10",
 		"@types/bun": "catalog:",
-		"rolldown": "1.2.6",
+		"rolldown": "1.2.9",
 		"semantic-release": "^25.0.9",
 		"typescript": "catalog:",
-		"vite-plus": "0.3.0"
+		"vite-plus": "0.3.3"
 	},
 	"overrides": {
 		"vite": "npm:@voidzero-dev/vite-plus-core@0.3.0"
