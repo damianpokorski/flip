@@ -17,6 +17,7 @@ describe("ConfigRepository", () => {
 			maxParallelFrameLoads: 3,
 			uiScale: 1,
 			theme: "catppuccin-mocha" as const,
+			proxySecret: null,
 		};
 		getMock.mockResolvedValue(config);
 		const repo = new ConfigRepository();
@@ -36,6 +37,7 @@ describe("ConfigRepository", () => {
 			maxParallelFrameLoads: 3,
 			uiScale: 1,
 			theme: "nord" as const,
+			proxySecret: null,
 		};
 		updateMock.mockResolvedValue(updated);
 		const repo = new ConfigRepository();

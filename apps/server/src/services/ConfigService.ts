@@ -18,9 +18,12 @@ export class ConfigService {
 		return this.repo.readRaw();
 	}
 
+	// Drops proxySecret — it's an HMAC key for proxy subdomain labels, never meant to leave the
+	// server (the raw config.yaml view under Settings → Config is the one place it's visible).
 	private enrich(config: Config) {
+		const { proxySecret: _proxySecret, ...rest } = config;
 		return {
-			...config,
+			...rest,
 			proxyDomain: env.PROXY_DOMAIN ?? null,
 			proxyPort: resolveProxyPort(
 				env.NODE_ENV === "production" ? "prod" : "dev",

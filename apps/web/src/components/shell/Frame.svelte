@@ -35,9 +35,22 @@ function registerFrame(node: HTMLIFrameElement, id: string) {
 // Falls back to the raw URL whenever the proxy isn't actually configured server-side, even
 // if a stale `proxyHeaders: true` is set on the service — fail-open to "works like today,"
 // never fail-closed to a broken iframe.
+//
+// Carries the service's own path+query onto the proxied host rather than always landing on
+// "/" — Caddy's reverse_proxy already forwards whatever path+query it's given untouched (see
+// CaddyProxyService), so the proxied origin alone was silently dropping deep links into a
+// proxied service. `new URL(service.url)` is expected to succeed here since the server
+// validates `url` is absolute whenever `proxyHeaders` is set (ServicesService.assertValidProxyUrl)
+// — the catch only guards a hand-edited config.yaml, which bypasses that validation.
 function frameSrc(service: ServiceData): string {
 	if (service.proxyHeaders && service.proxyHost && appState.proxyDomain) {
-		return `http://${service.proxyHost}.${appState.proxyDomain}:${appState.proxyPort}/`;
+		const base = `http://${service.proxyHost}.${appState.proxyDomain}:${appState.proxyPort}`;
+		try {
+			const { pathname, search } = new URL(service.url);
+			return `${base}${pathname}${search}`;
+		} catch {
+			return `${base}/`;
+		}
 	}
 	return service.url;
 }

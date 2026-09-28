@@ -10,6 +10,9 @@ export const DEFAULT_CONFIG_YAML = `# FLIP configuration — services, workspace
 #   theme                  the shell's colour palette — one of: catppuccin-mocha, rose-pine,
 #                          rose-pine-dawn, tokyo-night, tokyo-night-light, kanagawa,
 #                          kanagawa-lotus, nord, dracula. Set from Settings → Appearance.
+#   proxySecret            secret the proxy derives stable per-service subdomain labels from —
+#                          leave null to let FLIP generate one on first use. Regenerate from
+#                          Settings → Config to invalidate every proxied service's session.
 #
 # workspaces — groups of services shown together in the sidebar/HUD/spine, in the order
 # listed here (top to bottom on the spine):
@@ -47,6 +50,7 @@ healthCheckTimeoutMs: 5000
 maxParallelFrameLoads: 3
 uiScale: 1
 theme: catppuccin-mocha
+proxySecret: null
 workspaces:
   - id: default
     name: DEFAULT

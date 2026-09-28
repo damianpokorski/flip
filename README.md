@@ -8,8 +8,6 @@
 | -------------------------------------------- | -------------------------------- | ----------------------------------------------------- |
 | ![Dashboard](apps/docs/src/assets/screenshots/dashboard.png) | ![HUD](apps/docs/src/assets/screenshots/hud.png) | ![Settings — Services](apps/docs/src/assets/screenshots/services.png) |
 
-<sub>Demo data, not a live install. Regenerate with `bun run docs:screenshots`.</sub>
-
 ---
 
 ## Features
@@ -60,7 +58,7 @@ Open `config.yaml` (inside the `flip-data` volume, or `./data/` if bind-mounted)
 FLIP's embedded Caddy proxy is the single network entrypoint — one published port for the web UI, the API, and (when configured) per-service subdomains alike. An external reverse proxy in front of FLIP is optional and only needed for TLS termination on a real domain; it always talks to FLIP's one published port, never bypasses it:
 
 ```mermaid
-flowchart LR
+flowchart TD
     Browser(["Browser"])
 
     subgraph ext["Your infrastructure (optional)"]

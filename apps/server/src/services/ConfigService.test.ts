@@ -103,6 +103,19 @@ describe("ConfigService.get", () => {
 			uiScale: 1.5,
 		});
 	});
+
+	test("never surfaces proxySecret to the client", async () => {
+		// Arrange
+		const repo = fakeRepo({ proxySecret: "super-secret-hmac-key" });
+		// biome-ignore lint/suspicious/noExplicitAny: fake intentionally implements a subset
+		const service = new ConfigService(repo as any);
+
+		// Act
+		const result = await service.get();
+
+		// Assert
+		expect(result).not.toHaveProperty("proxySecret");
+	});
 });
 
 describe("ConfigService.update", () => {
@@ -127,6 +140,19 @@ describe("ConfigService.update", () => {
 			theme: "nord",
 			proxyDomain: "flip.home.lan",
 		});
+	});
+
+	test("never surfaces proxySecret to the client", async () => {
+		// Arrange
+		const repo = fakeRepo({ proxySecret: "super-secret-hmac-key" });
+		// biome-ignore lint/suspicious/noExplicitAny: fake intentionally implements a subset
+		const service = new ConfigService(repo as any);
+
+		// Act
+		const result = await service.update({ theme: "nord" });
+
+		// Assert
+		expect(result).not.toHaveProperty("proxySecret");
 	});
 });
 

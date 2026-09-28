@@ -24,6 +24,7 @@ describe("configStore", () => {
 			maxParallelFrameLoads: 3,
 			uiScale: 1,
 			theme: "catppuccin-mocha",
+			proxySecret: null,
 		});
 	});
 

@@ -27,6 +27,10 @@ mock.module("@flip/env/server", () => ({ env: envMock }));
 const { CaddyProxyService, buildCaddyfile } = await import(
 	"./CaddyProxyService"
 );
+// Spied on the real emitter rather than mock.module("../events", ...) — mock.module replaces
+// the module for every file that resolves to the same path within this test run, and other
+// suites (e.g. controllers/events.test.ts) import the real dataEvents too.
+const { dataEvents } = await import("../events");
 
 function service(overrides: Partial<Record<string, unknown>> = {}) {
 	return {
@@ -34,6 +38,19 @@ function service(overrides: Partial<Record<string, unknown>> = {}) {
 		url: "https://a.home.lan:1111",
 		proxyHeaders: true,
 		...overrides,
+	};
+}
+
+// In-memory stand-in for ConfigRepository — real enough to exercise
+// "generate once, persist, reuse" semantics (get() reflects whatever update() last wrote).
+function fakeConfigRepo(initialProxySecret: string | null = null) {
+	let proxySecret = initialProxySecret;
+	return {
+		get: async () => ({ proxySecret }),
+		update: async (patch: { proxySecret?: string | null }) => {
+			if ("proxySecret" in patch) proxySecret = patch.proxySecret ?? null;
+			return { proxySecret };
+		},
 	};
 }
 
@@ -345,7 +362,10 @@ describe("CaddyProxyService", () => {
 		const fetchSpy = mock(async () => new Response("", { status: 200 }));
 		global.fetch = fetchSpy as unknown as typeof fetch;
 		const repo = { findAll: async () => [] };
-		const proxy = new CaddyProxyService(repo as never);
+		const proxy = new CaddyProxyService(
+			repo as never,
+			fakeConfigRepo() as never,
+		);
 
 		// Act
 		const ok = await proxy.reload([service()] as never);
@@ -366,7 +386,10 @@ describe("CaddyProxyService", () => {
 			return new Response("", { status: 200 });
 		}) as unknown as typeof fetch;
 		const repo = { findAll: async () => [] };
-		const proxy = new CaddyProxyService(repo as never);
+		const proxy = new CaddyProxyService(
+			repo as never,
+			fakeConfigRepo() as never,
+		);
 
 		// Act
 		await proxy.reload([service({ id: "a" })] as never);
@@ -377,42 +400,56 @@ describe("CaddyProxyService", () => {
 		const headers = requestedInit?.headers as Record<string, string>;
 		expect(headers["Content-Type"]).toBe("text/caddyfile");
 		expect(requestedInit?.body).toContain(
-			`${proxy.labelFor("a")}.flip.lan:8080`,
+			`${await proxy.labelFor("a")}.flip.lan:8080`,
 		);
 		expect(requestedInit?.body).not.toContain("a.flip.lan:8080");
 	});
 
-	test("labelFor() is stable within an instance, unique per service, and differs across instances", () => {
+	test("labelFor() is stable per instance and per service, matches across instances sharing a secret, and differs across instances with independent secrets", async () => {
 		// Arrange
-		const repo = { findAll: async () => [] };
-		const first = new CaddyProxyService(repo as never);
-		const second = new CaddyProxyService(repo as never);
+		const sharedConfig = fakeConfigRepo();
+		const first = new CaddyProxyService(
+			{ findAll: async () => [] } as never,
+			sharedConfig as never,
+		);
+		const second = new CaddyProxyService(
+			{ findAll: async () => [] } as never,
+			sharedConfig as never,
+		);
+		const independent = new CaddyProxyService(
+			{ findAll: async () => [] } as never,
+			fakeConfigRepo() as never,
+		);
 
 		// Act
-		const a1 = first.labelFor("a");
-		const a2 = first.labelFor("a");
-		const b = first.labelFor("b");
+		const a1 = await first.labelFor("a");
+		const a2 = await first.labelFor("a");
+		const b = await first.labelFor("b");
+		const sharedA = await second.labelFor("a");
+		const independentA = await independent.labelFor("a");
 
 		// Assert
 		expect(a1).toBe(a2);
 		expect(a1).not.toBe(b);
 		expect(a1).toMatch(/^[0-9a-f]{32}$/);
-		expect(second.labelFor("a")).not.toBe(a1);
+		expect(sharedA).toBe(a1);
+		expect(independentA).not.toBe(a1);
 	});
 
-	test("reload() drops labels for services that no longer exist", async () => {
+	test("labelFor() reuses a secret already persisted in config.yaml instead of generating a new one", async () => {
 		// Arrange
-		envMock.PROXY_DOMAIN = "flip.lan";
-		global.fetch = (async () =>
-			new Response("", { status: 200 })) as unknown as typeof fetch;
-		const proxy = new CaddyProxyService({ findAll: async () => [] } as never);
-		const before = proxy.labelFor("gone");
+		const configRepo = fakeConfigRepo("preexisting-secret");
+		const proxy = new CaddyProxyService(
+			{ findAll: async () => [] } as never,
+			configRepo as never,
+		);
 
 		// Act
-		await proxy.reload([]);
+		const label = await proxy.labelFor("a");
 
 		// Assert
-		expect(proxy.labelFor("gone")).not.toBe(before);
+		expect(label).toBe(await proxy.labelFor("a"));
+		expect((await configRepo.get()).proxySecret).toBe("preexisting-secret");
 	});
 
 	test("learnOrigin() reloads once with the new host in frame-ancestors, and dedupes repeats", async () => {
@@ -424,7 +461,10 @@ describe("CaddyProxyService", () => {
 			return new Response("", { status: 200 });
 		}) as unknown as typeof fetch;
 		const repo = { findAll: async () => [service({ id: "a" })] };
-		const proxy = new CaddyProxyService(repo as never);
+		const proxy = new CaddyProxyService(
+			repo as never,
+			fakeConfigRepo() as never,
+		);
 
 		// Act
 		await proxy.learnOrigin("Flip.LAN:8080");
@@ -440,7 +480,10 @@ describe("CaddyProxyService", () => {
 		envMock.PROXY_DOMAIN = "flip.lan";
 		const fetchSpy = mock(async () => new Response("", { status: 200 }));
 		global.fetch = fetchSpy as unknown as typeof fetch;
-		const proxy = new CaddyProxyService({ findAll: async () => [] } as never);
+		const proxy = new CaddyProxyService(
+			{ findAll: async () => [] } as never,
+			fakeConfigRepo() as never,
+		);
 
 		// Act
 		await proxy.learnOrigin(null);
@@ -457,7 +500,10 @@ describe("CaddyProxyService", () => {
 		envMock.PROXY_DOMAIN = "flip.lan";
 		const fetchSpy = mock(async () => new Response("", { status: 200 }));
 		global.fetch = fetchSpy as unknown as typeof fetch;
-		const proxy = new CaddyProxyService({ findAll: async () => [] } as never);
+		const proxy = new CaddyProxyService(
+			{ findAll: async () => [] } as never,
+			fakeConfigRepo() as never,
+		);
 
 		// Act
 		await proxy.learnOrigin("flip.lan");
@@ -475,7 +521,10 @@ describe("CaddyProxyService", () => {
 			return new Response("", { status: 200 });
 		}) as unknown as typeof fetch;
 		const repo = { findAll: async () => [] };
-		const proxy = new CaddyProxyService(repo as never);
+		const proxy = new CaddyProxyService(
+			repo as never,
+			fakeConfigRepo() as never,
+		);
 
 		// Act
 		await proxy.reload([] as never);
@@ -493,7 +542,10 @@ describe("CaddyProxyService", () => {
 			return new Response("", { status: 200 });
 		}) as unknown as typeof fetch;
 		const repo = { findAll: async () => [] };
-		const proxy = new CaddyProxyService(repo as never);
+		const proxy = new CaddyProxyService(
+			repo as never,
+			fakeConfigRepo() as never,
+		);
 
 		// Act
 		await proxy.reload([] as never);
@@ -511,7 +563,10 @@ describe("CaddyProxyService", () => {
 			return new Response("", { status: 200 });
 		}) as unknown as typeof fetch;
 		const repo = { findAll: async () => [] };
-		const proxy = new CaddyProxyService(repo as never);
+		const proxy = new CaddyProxyService(
+			repo as never,
+			fakeConfigRepo() as never,
+		);
 
 		// Act
 		await proxy.reload([] as never);
@@ -529,7 +584,10 @@ describe("CaddyProxyService", () => {
 			return new Response("", { status: 200 });
 		}) as unknown as typeof fetch;
 		const repo = { findAll: async () => [] };
-		const devProxy = new CaddyProxyService(repo as never);
+		const devProxy = new CaddyProxyService(
+			repo as never,
+			fakeConfigRepo() as never,
+		);
 
 		// Act
 		await devProxy.reload([] as never);
@@ -544,7 +602,10 @@ describe("CaddyProxyService", () => {
 			prodInit = init;
 			return new Response("", { status: 200 });
 		}) as unknown as typeof fetch;
-		const prodProxy = new CaddyProxyService(repo as never);
+		const prodProxy = new CaddyProxyService(
+			repo as never,
+			fakeConfigRepo() as never,
+		);
 
 		// Act
 		await prodProxy.reload([] as never);
@@ -558,7 +619,10 @@ describe("CaddyProxyService", () => {
 		global.fetch = (async () =>
 			new Response("bad config", { status: 400 })) as unknown as typeof fetch;
 		const repo = { findAll: async () => [] };
-		const proxy = new CaddyProxyService(repo as never);
+		const proxy = new CaddyProxyService(
+			repo as never,
+			fakeConfigRepo() as never,
+		);
 
 		// Act
 		const ok = await proxy.reload([] as never);
@@ -574,7 +638,10 @@ describe("CaddyProxyService", () => {
 		global.fetch = (async () =>
 			new Response("", { status: 200 })) as unknown as typeof fetch;
 		const repo = { findAll: async () => [] };
-		const proxy = new CaddyProxyService(repo as never);
+		const proxy = new CaddyProxyService(
+			repo as never,
+			fakeConfigRepo() as never,
+		);
 
 		// Act
 		await proxy.start();
@@ -594,7 +661,10 @@ describe("CaddyProxyService", () => {
 			return new Response("", { status: 200 });
 		}) as unknown as typeof fetch;
 		const repo = { findAll: async () => [service({ id: "a" })] };
-		const proxy = new CaddyProxyService(repo as never);
+		const proxy = new CaddyProxyService(
+			repo as never,
+			fakeConfigRepo() as never,
+		);
 
 		// Act
 		await proxy.start();
@@ -617,7 +687,10 @@ describe("CaddyProxyService", () => {
 			return new Response("", { status: 200 });
 		}) as unknown as typeof fetch;
 		const repo = { findAll: async () => [] };
-		const proxy = new CaddyProxyService(repo as never);
+		const proxy = new CaddyProxyService(
+			repo as never,
+			fakeConfigRepo() as never,
+		);
 
 		// Act
 		await proxy.start();
@@ -632,7 +705,10 @@ describe("CaddyProxyService", () => {
 			throw new Error("ENOENT: caddy not found");
 		}) as unknown as typeof Bun.spawn;
 		const repo = { findAll: async () => [] };
-		const proxy = new CaddyProxyService(repo as never);
+		const proxy = new CaddyProxyService(
+			repo as never,
+			fakeConfigRepo() as never,
+		);
 
 		// Act / Assert — must not throw and must not crash the caller.
 		await expect(proxy.start()).resolves.toBeUndefined();
@@ -648,7 +724,10 @@ describe("CaddyProxyService", () => {
 		global.fetch = (async () =>
 			new Response("", { status: 200 })) as unknown as typeof fetch;
 		const repo = { findAll: async () => [] };
-		const proxy = new CaddyProxyService(repo as never);
+		const proxy = new CaddyProxyService(
+			repo as never,
+			fakeConfigRepo() as never,
+		);
 		await proxy.start();
 
 		// Act
@@ -656,5 +735,51 @@ describe("CaddyProxyService", () => {
 
 		// Assert
 		expect(killMock).toHaveBeenCalled();
+	});
+
+	test("regenerateSecret() persists a new secret, changing every subsequent label", async () => {
+		// Arrange
+		global.fetch = (async () =>
+			new Response("", { status: 200 })) as unknown as typeof fetch;
+		const configRepo = fakeConfigRepo();
+		const proxy = new CaddyProxyService(
+			{ findAll: async () => [] } as never,
+			configRepo as never,
+		);
+		const before = await proxy.labelFor("a");
+
+		// Act
+		await proxy.regenerateSecret();
+
+		// Assert
+		expect(await proxy.labelFor("a")).not.toBe(before);
+		expect((await configRepo.get()).proxySecret).not.toBeNull();
+	});
+
+	test("regenerateSecret() reloads Caddy with the new labels and notifies clients", async () => {
+		// Arrange
+		envMock.PROXY_DOMAIN = "flip.lan";
+		const bodies: string[] = [];
+		global.fetch = (async (_url: string, init?: RequestInit) => {
+			bodies.push(String(init?.body));
+			return new Response("", { status: 200 });
+		}) as unknown as typeof fetch;
+		const proxy = new CaddyProxyService(
+			{ findAll: async () => [service({ id: "a" })] } as never,
+			fakeConfigRepo() as never,
+		);
+		await proxy.reload([service({ id: "a" })] as never);
+		const oldLabel = await proxy.labelFor("a");
+		const changeSpy = mock();
+		dataEvents.once("change", changeSpy);
+
+		// Act
+		await proxy.regenerateSecret();
+
+		// Assert
+		const newLabel = await proxy.labelFor("a");
+		expect(bodies.at(-1)).toContain(`${newLabel}.flip.lan:8080`);
+		expect(bodies.at(-1)).not.toContain(`${oldLabel}.flip.lan:8080`);
+		expect(changeSpy).toHaveBeenCalled();
 	});
 });

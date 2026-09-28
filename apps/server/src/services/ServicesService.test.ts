@@ -446,7 +446,7 @@ describe("ServicesService proxied-url validation", () => {
 			repo as never,
 			fakeWorkspacesRepo() as never,
 			undefined,
-			(id) => `label-${id}`,
+			async (id) => `label-${id}`,
 		);
 
 		// Act

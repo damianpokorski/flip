@@ -8,12 +8,32 @@ import StatusDot from "../../../components/status/StatusDot.svelte";
 const api = createApi();
 
 let file = $state<RawFile | null>(null);
+let regenerating = $state(false);
 
 onMount(async () => {
 	await appState.refresh();
 	const { data, error } = await api.api.config.raw.get();
 	file = error ? null : data;
 });
+
+async function regenerateProxySecret() {
+	if (
+		!confirm(
+			"Regenerate the proxy secret? Every currently proxied service will need to log in again.",
+		)
+	) {
+		return;
+	}
+	regenerating = true;
+	const { error } = await api.api.config["proxy-secret"].regenerate.post();
+	regenerating = false;
+	if (error) {
+		console.error("Failed to regenerate proxy secret", error);
+		return;
+	}
+	const { data } = await api.api.config.raw.get();
+	if (data) file = data;
+}
 
 function classifyLine(line: string): string {
 	const trimmed = line.trim();
@@ -68,6 +88,28 @@ async function copy(content: string) {
 			{/if}
 		</div>
 	</section>
+
+	{#if appState.proxyDomain}
+		<section class="proxy-section">
+			<div class="section-head">
+				<span class="section-title">Proxy security</span>
+			</div>
+			<p class="proxy-copy">
+				Each proxied service's login session is tied to a secret stored in
+				config.yaml, so it survives a restart instead of logging everything out.
+				Regenerate it if you suspect it's leaked — every currently proxied service
+				will need to log in again.
+			</p>
+			<button
+				type="button"
+				class="danger regen-btn"
+				disabled={regenerating}
+				onclick={regenerateProxySecret}
+			>
+				{regenerating ? "Regenerating…" : "Regenerate proxy secret"}
+			</button>
+		</section>
+	{/if}
 </div>
 
 <style>
@@ -99,6 +141,55 @@ async function copy(content: string) {
 		display: flex;
 		align-items: center;
 		gap: var(--sp-6);
+	}
+	.proxy-section {
+		display: flex;
+		flex-direction: column;
+		gap: var(--sp-6);
+		border-radius: var(--r-md);
+		border: var(--stroke-hair) solid var(--border-soft);
+		background: var(--bg-panel);
+		padding: var(--sp-8);
+	}
+	.section-title {
+		font-family: var(--font-display);
+		font-size: var(--t-label);
+		letter-spacing: var(--track-wide);
+		text-transform: uppercase;
+		color: var(--text-3);
+	}
+	.proxy-copy {
+		margin: 0;
+		font-family: var(--font-mono);
+		font-size: var(--t-mono-xs);
+		line-height: 1.5;
+		color: var(--text-4);
+		max-width: 60ch;
+	}
+	.regen-btn {
+		align-self: flex-start;
+		display: inline-flex;
+		align-items: center;
+		border: var(--stroke-hair) solid transparent;
+		border-radius: var(--r-row);
+		background: transparent;
+		font-family: var(--font-display);
+		font-size: var(--t-label);
+		font-weight: var(--w-medium);
+		letter-spacing: var(--track-wide);
+		text-transform: uppercase;
+		padding: 5px var(--sp-10);
+		cursor: pointer;
+	}
+	.regen-btn.danger {
+		color: var(--health-down);
+	}
+	.regen-btn:hover:not(:disabled) {
+		background: var(--accent-row-quiet);
+	}
+	.regen-btn:disabled {
+		opacity: 0.4;
+		cursor: default;
 	}
 	.filename {
 		font-family: var(--font-mono);

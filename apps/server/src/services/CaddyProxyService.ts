@@ -1,7 +1,10 @@
+import { createHmac } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { env } from "@flip/env/server";
+import type { ConfigRepository } from "../db/ConfigRepository";
 import type { Service, ServicesRepository } from "../db/ServicesRepository";
+import { notifyDataChanged } from "../events";
 
 const BOOTSTRAP_CONFIG_PATH = path.join(
 	os.tmpdir(),
@@ -26,6 +29,26 @@ export function resolveProxyPort(mode: "dev" | "prod"): number {
 const MAX_LEARNED_HOSTS = 8;
 const HOST_PATTERN =
 	/^(?:[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?|\[[0-9a-f:]+\])(?::\d{1,5})?$/;
+
+// 256 bits from the CSPRNG, hex-encoded — the HMAC key labels are derived from, not a label
+// itself, so it isn't bound to the 63-char DNS-label limit label generation is.
+function generateSecret(): string {
+	return Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString(
+		"hex",
+	);
+}
+
+// Deterministic per-service label: same secret + service id always yields the same label, so a
+// service's proxied subdomain (and any cookies a proxied app sets on it) survives a restart
+// instead of rotating every boot — the secret itself is what stays unguessable to a LAN client,
+// not the boot-to-boot churn. 32 lowercase hex chars, matching the old CSPRNG label's shape
+// (a valid DNS label, <= 63 chars).
+function deriveLabel(secret: string, serviceId: string): string {
+	return createHmac("sha256", secret)
+		.update(serviceId)
+		.digest("hex")
+		.slice(0, 32);
+}
 
 export interface BuildCaddyfileOptions {
 	services: Service[];
@@ -185,28 +208,60 @@ ${[rootBlock, ...serviceBlocks].join("\n\n")}
 // repository for business logic.
 export class CaddyProxyService {
 	private process: ReturnType<typeof Bun.spawn> | undefined;
-	// Unguessable per-boot subdomain labels, keyed by service id. In-memory only — regenerated on
-	// every boot and never persisted, same rationale as transient health status (the API hands
-	// the current label to the web app, which re-syncs after a restart).
-	private readonly labels = new Map<string, string>();
+	// Cached in-memory once loaded/generated so labelFor() and every reload agree on the same
+	// value without re-reading config.yaml on every call — see ensureSecret().
+	private secret: string | undefined;
+	private secretPromise: Promise<string> | undefined;
 	// Hosts (`host[:port]`) FLIP itself has been reached on, learned from request Host headers.
 	private readonly frameAncestorHosts = new Set<string>();
 	// Reloads are serialized so a learnOrigin() reload and a file-watcher reload can never race
 	// each other's POST /load — the last one to *run* always builds from the newest state.
 	private reloadQueue: Promise<unknown> = Promise.resolve();
 
-	constructor(private readonly repo: ServicesRepository) {}
+	constructor(
+		private readonly repo: ServicesRepository,
+		private readonly configRepo: ConfigRepository,
+	) {}
 
-	// 128 bits from the CSPRNG as 32 lowercase hex chars — a valid DNS label (<= 63 chars).
-	labelFor(serviceId: string): string {
-		let label = this.labels.get(serviceId);
-		if (!label) {
-			label = Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString(
-				"hex",
-			);
-			this.labels.set(serviceId, label);
-		}
-		return label;
+	// Loads the persisted secret, generating and persisting one on first use — cached and
+	// deduped so concurrent callers (e.g. a reload racing a GET /services) all settle on the
+	// same value instead of a last-write-wins double-generate.
+	private ensureSecret(): Promise<string> {
+		if (this.secret) return Promise.resolve(this.secret);
+		if (!this.secretPromise) this.secretPromise = this.loadOrCreateSecret();
+		return this.secretPromise;
+	}
+
+	private async loadOrCreateSecret(): Promise<string> {
+		const config = await this.configRepo.get();
+		const secret = config.proxySecret ?? (await this.persistNewSecret());
+		this.secret = secret;
+		return secret;
+	}
+
+	private async persistNewSecret(): Promise<string> {
+		const secret = generateSecret();
+		await this.configRepo.update({ proxySecret: secret });
+		return secret;
+	}
+
+	// Stable across restarts (see deriveLabel) — only changes when the underlying secret does,
+	// i.e. on regenerateSecret().
+	async labelFor(serviceId: string): Promise<string> {
+		return deriveLabel(await this.ensureSecret(), serviceId);
+	}
+
+	// Rotates the secret every proxied service's label is derived from, invalidating every
+	// currently-proxied session at once (each gets a brand new, unrelated subdomain) — the
+	// user-facing "I suspect this leaked, cut it off" action. Reloads Caddy with the new labels
+	// and notifies connected clients so their iframes pick up the new proxyHost immediately,
+	// the same path an ordinary restart's label change already goes through.
+	async regenerateSecret(): Promise<void> {
+		const secret = await this.persistNewSecret();
+		this.secret = secret;
+		this.secretPromise = Promise.resolve(secret);
+		await this.reload(await this.repo.findAll());
+		notifyDataChanged();
 	}
 
 	// Records the Host FLIP's own UI/API was reached on so proxied frames can be locked to it via
@@ -278,19 +333,24 @@ export class CaddyProxyService {
 
 	private async pushConfig(services: Service[]): Promise<boolean> {
 		const mode = this.mode();
-		// Labels for services that no longer exist are dropped here, on every reload.
-		const liveIds = new Set(services.map((service) => service.id));
-		for (const id of this.labels.keys()) {
-			if (!liveIds.has(id)) this.labels.delete(id);
-		}
+		const domain = env.PROXY_DOMAIN;
+		// Only touch the secret when there's actually something to label — PROXY_DOMAIN unset
+		// means buildCaddyfile emits no per-service blocks at all, so a FLIP install that never
+		// uses the proxy feature never generates/persists a proxySecret it'll never need.
+		// buildCaddyfile's labelFor callback is synchronous (it's a pure string-building
+		// function, tested independently of secret loading) — resolve every label up front,
+		// once, off the one secret this reload will use.
+		const secret = domain ? await this.ensureSecret() : undefined;
 		const caddyfile = buildCaddyfile({
 			services,
 			mode,
 			appPort: env.PORT,
 			proxyPort: resolveProxyPort(mode),
-			domain: env.PROXY_DOMAIN,
+			domain,
 			adminPort: env.CADDY_ADMIN_PORT,
-			labelFor: (service) => this.labelFor(service.id),
+			labelFor: secret
+				? (service) => deriveLabel(secret, service.id)
+				: undefined,
 			frameAncestorHosts: [...this.frameAncestorHosts],
 		});
 		try {

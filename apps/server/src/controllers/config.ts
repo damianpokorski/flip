@@ -33,10 +33,18 @@ const RawFileModel = t.Object({
 	updatedAt: t.String(),
 });
 
+const ProxySecretRegenerateResultModel = t.Object({
+	regenerated: t.Boolean(),
+});
+
 const service = new ConfigService(new ConfigRepository());
 
 export const configController = new Elysia({ prefix: "/config" })
-	.model({ Config: ConfigModel, RawFile: RawFileModel })
+	.model({
+		Config: ConfigModel,
+		RawFile: RawFileModel,
+		ProxySecretRegenerateResult: ProxySecretRegenerateResultModel,
+	})
 	// The SPA calls this on every load before it builds any frame src, so it doubles as the
 	// place FLIP's own origin is learned for the proxied frames' `frame-ancestors` — and it
 	// awaits the resulting Caddy reload so frames never race a CSP that doesn't list them yet.
@@ -59,4 +67,21 @@ export const configController = new Elysia({ prefix: "/config" })
 	.get("/raw", () => service.readRaw(), {
 		response: "RawFile",
 		detail: { summary: "Get config.yaml's live file text", tags: ["config"] },
-	});
+	})
+	// Rotates the secret every proxied service's subdomain label is derived from, invalidating
+	// every currently-proxied service's session at once — the manual counterpart to the
+	// disruption an ordinary restart used to cause on every boot.
+	.post(
+		"/proxy-secret/regenerate",
+		async () => {
+			await caddyProxyService.regenerateSecret();
+			return { regenerated: true };
+		},
+		{
+			response: "ProxySecretRegenerateResult",
+			detail: {
+				summary: "Rotate the proxy subdomain label secret",
+				tags: ["config"],
+			},
+		},
+	);

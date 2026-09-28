@@ -35,6 +35,13 @@ mock.module("../db/ServicesRepository", () => ({
 mock.module("../db/WorkspacesRepository", () => ({
 	WorkspacesRepository: class {},
 }));
+// CaddyProxyService (real class, built with `new ConfigRepository()` at module scope in
+// ./services) isn't itself mocked here, but its ConfigRepository dependency would otherwise
+// pull in @flip/store's configStore — mocked to keep this file isolated from that, same as the
+// two repositories above.
+mock.module("../db/ConfigRepository", () => ({
+	ConfigRepository: class {},
+}));
 mock.module("../services/HealthCheckService", () => ({
 	HealthCheckService: class {
 		getStatus() {

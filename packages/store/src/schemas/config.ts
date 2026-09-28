@@ -25,6 +25,13 @@ export const ConfigSchema = z.object({
 	uiScale: z.number().min(0.5).max(2).default(1),
 	// The shell's colour palette — see THEMES above. Settings → Appearance writes this.
 	theme: ThemeSchema.default("catppuccin-mocha"),
+	// Secret CaddyProxyService derives each proxied service's subdomain label from (HMAC over
+	// the service id), so labels — and any cookies a proxied service sets on them — survive a
+	// restart instead of the label rotating every boot. null until the proxy first needs a
+	// label; generated once then and persisted here. Never sent to the client (ConfigService
+	// strips it) — Settings → Config's "regenerate" action rotates it, invalidating every
+	// currently-proxied session at once.
+	proxySecret: z.string().nullable().default(null),
 });
 export type Config = z.infer<typeof ConfigSchema>;
 

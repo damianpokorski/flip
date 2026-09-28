@@ -1,4 +1,5 @@
 import { Elysia, t } from "elysia";
+import { ConfigRepository } from "../db/ConfigRepository";
 import { ServicesRepository } from "../db/ServicesRepository";
 import { WorkspacesRepository } from "../db/WorkspacesRepository";
 import { errorPlugin } from "../errors";
@@ -106,7 +107,10 @@ const workspacesRepository = new WorkspacesRepository();
 export const healthCheckService = new HealthCheckService(repository);
 // Exported for the same reason as healthCheckService — apps/server/src/index.ts starts it
 // once at boot and hooks the services-file watcher to call reload() on every change.
-export const caddyProxyService = new CaddyProxyService(repository);
+export const caddyProxyService = new CaddyProxyService(
+	repository,
+	new ConfigRepository(),
+);
 const service = new ServicesService(
 	repository,
 	workspacesRepository,

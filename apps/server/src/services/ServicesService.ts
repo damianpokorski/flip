@@ -39,8 +39,9 @@ const toApiService = (
 	proxyHost: string | null,
 ) => ({
 	...service,
-	// Unguessable per-boot subdomain label for the header-stripping proxy — null when the service
-	// isn't proxied. The web app composes `<proxyHost>.<proxyDomain>:<proxyPort>` from it.
+	// Unguessable, stable-across-restarts subdomain label for the header-stripping proxy — null
+	// when the service isn't proxied. The web app composes `<proxyHost>.<proxyDomain>:<proxyPort>`
+	// from it.
 	proxyHost,
 	// `service.hue` is only ever unset (null/undefined) on disk — every consumer of the API
 	// response gets an always-concrete colour, resolved here rather than at every render site.
@@ -62,20 +63,21 @@ export class ServicesService {
 		private readonly workspaces: WorkspacesRepository,
 		private readonly getHealth: (id: string) => HealthStatus = () =>
 			UNKNOWN_HEALTH,
-		private readonly getProxyLabel: (id: string) => string = (id) => id,
+		private readonly getProxyLabel: (id: string) => Promise<string> = (id) =>
+			Promise.resolve(id),
 	) {}
 
-	private toApi(service: Service) {
+	private async toApi(service: Service) {
 		return toApiService(
 			service,
 			this.getHealth(service.id),
-			service.proxyHeaders ? this.getProxyLabel(service.id) : null,
+			service.proxyHeaders ? await this.getProxyLabel(service.id) : null,
 		);
 	}
 
 	async getAll() {
 		const services = await this.repo.findAll();
-		return services.map((service) => this.toApi(service));
+		return Promise.all(services.map((service) => this.toApi(service)));
 	}
 
 	async getById(id: string) {
@@ -144,7 +146,7 @@ export class ServicesService {
 		}
 		const services = await this.repo.reorder(workspaceId, ids);
 		notifyDataChanged();
-		return services.map((service) => this.toApi(service));
+		return Promise.all(services.map((service) => this.toApi(service)));
 	}
 
 	// source: "local" services don't take a user-typed url — it's derived from localSlug so
