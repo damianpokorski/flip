@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { TileHue } from "@flip/store";
+import type { Injection, TileHue } from "@flip/store";
 import type { ProbeResult } from "$lib/api";
 import { createApi } from "$lib/api";
 import Badge from "../core/Badge.svelte";
@@ -9,6 +9,7 @@ import KeyCap from "../core/KeyCap.svelte";
 import ServiceMark from "../service/ServiceMark.svelte";
 import Latency from "../status/Latency.svelte";
 import FieldLabel from "./FieldLabel.svelte";
+import InjectionList from "./InjectionList.svelte";
 import Toggle from "./Toggle.svelte";
 
 const TILE_HUES: TileHue[] = [
@@ -42,6 +43,7 @@ let {
 	every = $bindable("30s"),
 	target = $bindable<"frame" | "external">("frame"),
 	proxyHeaders = $bindable(false),
+	inject = $bindable<Injection[]>([]),
 	lazyLoad = $bindable(false),
 	proxyAvailable = false,
 	sites = [],
@@ -64,6 +66,7 @@ let {
 	every?: string;
 	target?: "frame" | "external";
 	proxyHeaders?: boolean;
+	inject?: Injection[];
 	lazyLoad?: boolean;
 	proxyAvailable?: boolean;
 	sites?: { slug: string; inUse: boolean }[];
@@ -292,6 +295,9 @@ const probeHint = $derived.by(() => {
 			label="Route through FLIP's header-stripping proxy"
 			hint="lets a service that blocks iframing embed anyway"
 		/>
+		{#if proxyHeaders}
+			<InjectionList bind:rows={inject} />
+		{/if}
 	{/if}
 
 	<Toggle

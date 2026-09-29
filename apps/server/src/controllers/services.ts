@@ -39,6 +39,20 @@ const TileHueModel = t.Union([
 
 const ServiceSourceModel = t.Union([t.Literal("external"), t.Literal("local")]);
 
+// Shape only — per-kind key rules (header tokens, no line breaks, no Host override) are
+// enforced by ServicesService against the store's own InjectionSchema.
+const InjectionModel = t.Object({
+	kind: t.Union([
+		t.Literal("requestHeader"),
+		t.Literal("responseHeader"),
+		t.Literal("cookie"),
+		t.Literal("query"),
+		t.Literal("localStorage"),
+	]),
+	key: t.String({ minLength: 1 }),
+	value: t.String(),
+});
+
 const ServiceBodyModel = t.Object({
 	name: t.String(),
 	mark: t.String(),
@@ -55,6 +69,7 @@ const ServiceBodyModel = t.Object({
 	every: t.Optional(t.String()),
 	target: t.Optional(t.Union([t.Literal("frame"), t.Literal("external")])),
 	proxyHeaders: t.Optional(t.Boolean()),
+	inject: t.Optional(t.Array(InjectionModel)),
 	hidden: t.Optional(t.Boolean()),
 	lazyLoad: t.Optional(t.Boolean()),
 });
@@ -79,6 +94,7 @@ const ServiceModel = t.Object({
 	proxyHeaders: t.Boolean(),
 	// Unguessable per-boot subdomain label; null when the service isn't proxied.
 	proxyHost: t.Nullable(t.String()),
+	inject: t.Array(InjectionModel),
 	hidden: t.Boolean(),
 	lazyLoad: t.Boolean(),
 	health: HealthModel,
@@ -148,6 +164,22 @@ export const servicesController = new Elysia({ prefix: "/services" })
 		response: { 200: "Service", 404: "NotFoundError" },
 		detail: { summary: "Get a service by id", tags: ["services"] },
 	})
+	// Reached through a proxied service's own subdomain (Caddy rewrites /__flip/seed there to
+	// this route), so the HTML it returns runs on that service's origin — see renderSeedPage.
+	.get(
+		"/:id/seed",
+		({ params: { id }, query }) => service.seedPage(id, query.next),
+		{
+			params: t.Object({ id: t.String() }),
+			query: t.Object({ next: t.Optional(t.String()) }),
+			response: { 404: "NotFoundError" },
+			detail: {
+				summary:
+					"Seed page that writes a proxied service's cookies/localStorage",
+				tags: ["services"],
+			},
+		},
+	)
 	.post("/", ({ body }) => service.create(body), {
 		body: "ServiceBody",
 		response: {

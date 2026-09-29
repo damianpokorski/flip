@@ -37,6 +37,7 @@ function service(overrides: Partial<Record<string, unknown>> = {}) {
 		id: "svc-a",
 		url: "https://a.home.lan:1111",
 		proxyHeaders: true,
+		inject: [],
 		...overrides,
 	};
 }
@@ -282,7 +283,7 @@ describe("buildCaddyfile hardening", () => {
 		});
 
 		expect(caddyfile).toContain(
-			'header_down +Content-Security-Policy "frame-ancestors http://flip.lan:8080 https://flip.lan:8080"',
+			'+Content-Security-Policy "frame-ancestors http://flip.lan:8080 https://flip.lan:8080"',
 		);
 	});
 
@@ -293,8 +294,26 @@ describe("buildCaddyfile hardening", () => {
 		});
 
 		expect(caddyfile).toContain(
-			`header_down +Content-Security-Policy "frame-ancestors 'none'"`,
+			`+Content-Security-Policy "frame-ancestors 'none'"`,
 		);
+	});
+
+	test("adds FLIP's frame-ancestors as a deferred site-level header, never a header_down the strip would wipe", () => {
+		// Arrange
+		const services = [service()];
+
+		// Act
+		const caddyfile = buildCaddyfile({
+			...base,
+			services: services as never,
+			frameAncestorHosts: ["flip.lan:8080"],
+		});
+
+		// Assert
+		expect(caddyfile).toContain(
+			'\theader {\n\t\t+Content-Security-Policy "frame-ancestors http://flip.lan:8080 https://flip.lan:8080"\n\t\tdefer\n\t}',
+		);
+		expect(caddyfile).not.toContain("header_down +Content-Security-Policy");
 	});
 
 	test("sets a default same-origin Referrer-Policy", () => {
@@ -334,6 +353,113 @@ describe("buildCaddyfile hardening", () => {
 		expect(caddyfile).not.toContain("label-bad");
 		expect(caddyfile).not.toContain("label-ftp");
 		errorSpy.mockRestore();
+	});
+});
+
+describe("buildCaddyfile injections", () => {
+	const base = {
+		mode: "prod" as const,
+		appPort: 3000,
+		proxyPort: 8080,
+		domain: "flip.lan",
+		adminPort: 2019,
+	};
+
+	test("emits request/response header rows after FLIP's own header rules", () => {
+		// Arrange
+		const inject = [
+			{ kind: "requestHeader", key: "X-User", value: "me" },
+			{ kind: "responseHeader", key: "X-Test", value: "1" },
+		];
+
+		// Act
+		const caddyfile = buildCaddyfile({
+			...base,
+			services: [service({ inject })] as never,
+		});
+
+		// Assert
+		const hostRewrite = caddyfile.indexOf("header_up Host");
+		const cspStrip = caddyfile.indexOf("header_down Content-Security-Policy");
+		expect(hostRewrite).toBeGreaterThan(-1);
+		expect(cspStrip).toBeGreaterThan(-1);
+		expect(caddyfile.indexOf('header_up X-User "me"')).toBeGreaterThan(
+			hostRewrite,
+		);
+		expect(caddyfile.indexOf('header_down X-Test "1"')).toBeGreaterThan(
+			cspStrip,
+		);
+	});
+
+	test("escapes double quotes inside an injected header value", () => {
+		// Arrange
+		const inject = [{ kind: "requestHeader", key: "X-Q", value: 'a "b" c' }];
+
+		// Act
+		const caddyfile = buildCaddyfile({
+			...base,
+			services: [service({ inject })] as never,
+		});
+
+		// Assert
+		expect(caddyfile).toContain('header_up X-Q "a \\"b\\" c"');
+	});
+
+	test("header-only and query-only injections add no seed route", () => {
+		// Arrange
+		const inject = [
+			{ kind: "requestHeader", key: "X-User", value: "me" },
+			{ kind: "query", key: "kiosk", value: "" },
+		];
+
+		// Act
+		const caddyfile = buildCaddyfile({
+			...base,
+			services: [service({ inject })] as never,
+		});
+
+		// Assert
+		expect(caddyfile).not.toContain("/__flip/seed");
+		expect(caddyfile).not.toContain("route {");
+	});
+
+	test("a localStorage or cookie row adds a seed route rewritten onto FLIP's API", () => {
+		// Arrange
+		const inject = [
+			{ kind: "localStorage", key: "dockedSidebar", value: '"always_hidden"' },
+		];
+
+		// Act
+		const caddyfile = buildCaddyfile({
+			...base,
+			services: [service({ id: "svc-a", inject })] as never,
+		});
+
+		// Assert
+		expect(caddyfile).toContain("handle /__flip/seed {");
+		expect(caddyfile).toContain("rewrite * /api/services/svc-a/seed?{query}");
+		expect(caddyfile).toContain("reverse_proxy 127.0.0.1:3000\n");
+	});
+
+	test("the seed route sits inside `route` after the top-level 403, so the 403 still runs first", () => {
+		// Arrange
+		const inject = [{ kind: "cookie", key: "session", value: "abc" }];
+
+		// Act
+		const caddyfile = buildCaddyfile({
+			...base,
+			services: [service({ inject })] as never,
+		});
+
+		// Assert
+		const route = caddyfile.indexOf("route {");
+		const forbidden = caddyfile.indexOf('respond @toplevel "Forbidden" 403');
+		const seed = caddyfile.indexOf("handle /__flip/seed");
+		const upstream = caddyfile.indexOf("reverse_proxy https://a.home.lan:1111");
+		expect(route).toBeGreaterThan(-1);
+		expect(forbidden).toBeGreaterThan(route);
+		expect(seed).toBeGreaterThan(forbidden);
+		expect(upstream).toBeGreaterThan(seed);
 	});
 });
 

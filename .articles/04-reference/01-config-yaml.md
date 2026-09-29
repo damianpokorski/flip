@@ -49,6 +49,7 @@ Workspaces appear on the spine in the order listed.
 | `every` | `30s` | How often to check, for example `30s` or `5m`. |
 | `target` | `frame` | `frame` to embed, `external` to open in a new tab. |
 | `proxyHeaders` | `false` | Route through the header-stripping proxy. Needs `PROXY_DOMAIN`. |
+| `inject` | `[]` | Values pushed into a proxied service, as `{ kind, key, value }` rows. Only applies with `proxyHeaders` on. See [Embedding stubborn services](/flip/guides/embedding-stubborn-services/#inject-headers-cookies-and-storage). |
 | `hidden` | `false` | Hide from the switcher and HUD without deleting. |
 | `lazyLoad` | `false` | Skip background loading; load on first open. |
 

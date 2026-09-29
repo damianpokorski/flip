@@ -41,6 +41,19 @@ export const DEFAULT_CONFIG_YAML = `# FLIP configuration — services, workspace
 #   target            "frame" to embed in an iframe, "external" to open in a new tab
 #   proxyHeaders      true to route through FLIP's built-in header-stripping proxy (needs
 #                     PROXY_DOMAIN set) — for services that refuse to be iframed otherwise
+#   inject            values pushed into a proxied service (only applies with proxyHeaders on),
+#                     a list of { kind, key, value } — kind is one of:
+#                       requestHeader   header sent to the service on every proxied request
+#                       responseHeader  header added to every response the service sends back
+#                       cookie          cookie set on the proxied origin on every frame load
+#                                       (append attributes to value, e.g. "abc; HttpOnly")
+#                       query           query param added to the frame's starting URL only
+#                       localStorage    key written to the proxied origin's localStorage on
+#                                       every frame load, overwriting whatever the app set
+#                     e.g. Home Assistant's hidden sidebar:
+#                       - { kind: localStorage, key: dockedSidebar, value: '"always_hidden"' }
+#                     Values are stored in plaintext here and visible to anyone who can reach
+#                     FLIP. Header values also go through Caddy placeholders ({env.NAME} etc.).
 #   hidden            set true to hide from the switcher/HUD without deleting
 #   lazyLoad          true to skip background preloading — only loads once opened
 #
@@ -70,6 +83,7 @@ workspaces:
         every: 30s
         target: frame
         proxyHeaders: false
+        inject: []
         hidden: false
         lazyLoad: false
 `;

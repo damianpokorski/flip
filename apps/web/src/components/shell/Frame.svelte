@@ -1,4 +1,5 @@
 <script lang="ts">
+import { SEED_INJECTION_KINDS } from "@flip/store/injection";
 import type { ServiceData } from "$lib/api";
 import { appState } from "$lib/app-state.svelte";
 import { workspaceLabel } from "$lib/workspace";
@@ -42,15 +43,30 @@ function registerFrame(node: HTMLIFrameElement, id: string) {
 // proxied service. `new URL(service.url)` is expected to succeed here since the server
 // validates `url` is absolute whenever `proxyHeaders` is set (ServicesService.assertValidProxyUrl)
 // — the catch only guards a hand-edited config.yaml, which bypasses that validation.
+//
+// Injections only apply on this proxied path: `query` rows are merged into the starting URL
+// (first navigation only — never the app's later requests), and any cookie/localStorage row
+// sends the frame through the proxied origin's /__flip/seed page first, which writes them on
+// that origin and then redirects to the real start path (see the server's renderSeedPage).
 function frameSrc(service: ServiceData): string {
 	if (service.proxyHeaders && service.proxyHost && appState.proxyDomain) {
 		const base = `http://${service.proxyHost}.${appState.proxyDomain}:${appState.proxyPort}`;
+		let start = "/";
 		try {
-			const { pathname, search } = new URL(service.url);
-			return `${base}${pathname}${search}`;
+			const url = new URL(service.url);
+			for (const row of service.inject) {
+				if (row.kind === "query") url.searchParams.set(row.key, row.value);
+			}
+			start = `${url.pathname}${url.search}`;
 		} catch {
-			return `${base}/`;
+			// keep "/"
 		}
+		const needsSeed = service.inject.some((row) =>
+			SEED_INJECTION_KINDS.includes(row.kind),
+		);
+		return needsSeed
+			? `${base}/__flip/seed?next=${encodeURIComponent(start)}`
+			: `${base}${start}`;
 	}
 	return service.url;
 }

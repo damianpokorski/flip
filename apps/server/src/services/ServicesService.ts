@@ -1,4 +1,5 @@
 import { hueFor } from "@flip/store/hue";
+import { InjectionSchema } from "@flip/store/schemas/service";
 import { v7 as uuidv7 } from "uuid";
 import type {
 	NewService,
@@ -13,6 +14,7 @@ import {
 } from "../errors";
 import { notifyDataChanged } from "../events";
 import type { HealthStatus } from "./HealthCheckService";
+import { renderSeedPage } from "./seed-page";
 
 export interface ServiceBody {
 	name: string;
@@ -29,6 +31,7 @@ export interface ServiceBody {
 	every?: string;
 	target?: Service["target"];
 	proxyHeaders?: boolean;
+	inject?: Service["inject"];
 	hidden?: boolean;
 	lazyLoad?: boolean;
 }
@@ -89,6 +92,7 @@ export class ServicesService {
 	async create(data: ServiceBody) {
 		const normalized = this.normalizeSource(data);
 		this.assertValidProxyUrl(normalized);
+		this.assertValidInjections(normalized);
 		await this.assertValidWorkspaceId(normalized.ws);
 		await this.assertPinAvailable(normalized.pin, null);
 		const newService: NewService = {
@@ -100,6 +104,7 @@ export class ServicesService {
 			every: "30s",
 			target: "frame",
 			proxyHeaders: false,
+			inject: [],
 			hidden: false,
 			lazyLoad: false,
 			...normalized,
@@ -113,6 +118,7 @@ export class ServicesService {
 		await this.getById(id);
 		const normalized = this.normalizeSource(data);
 		this.assertValidProxyUrl(normalized);
+		this.assertValidInjections(normalized);
 		await this.assertValidWorkspaceId(normalized.ws);
 		await this.assertPinAvailable(normalized.pin, id);
 		const service = await this.repo.update(id, normalized);
@@ -127,6 +133,15 @@ export class ServicesService {
 		notifyDataChanged();
 		// biome-ignore lint/style/noNonNullAssertion: getById above already confirmed existence
 		return this.toApi(service!);
+	}
+
+	// Served on the proxied origin via Caddy's /__flip/seed rewrite — see renderSeedPage. Reads
+	// the service fresh on every frame load, so an edited injection applies on the next load
+	// without waiting on a Caddy reload.
+	async seedPage(id: string, next: string | undefined) {
+		const service = await this.repo.findById(id);
+		if (!service) throw new NotFoundError("Service not found");
+		return renderSeedPage(service.inject, next);
 	}
 
 	async reorder(workspaceId: string, ids: string[]) {
@@ -165,6 +180,7 @@ export class ServicesService {
 			localSlug,
 			url: `/api/sites/${localSlug}/`,
 			proxyHeaders: false,
+			inject: [],
 		};
 	}
 
@@ -184,6 +200,21 @@ export class ServicesService {
 			throw new UnprocessableEntityError(
 				"url must use http or https when proxyHeaders is enabled",
 			);
+		}
+	}
+
+	// Same rules the on-disk schema enforces (header/cookie name tokens, no line breaks, no Host
+	// override) — checked up front so a bad row is a 422 with a readable message instead of the
+	// store's write-time parse failing. These values end up inside the Caddyfile.
+	private assertValidInjections(data: ServiceBody) {
+		for (const [index, injection] of (data.inject ?? []).entries()) {
+			const result = InjectionSchema.safeParse(injection);
+			if (!result.success) {
+				const issue = result.error.issues[0];
+				throw new UnprocessableEntityError(
+					`inject[${index}].${issue?.path.join(".") ?? ""} ${issue?.message ?? "is invalid"}`,
+				);
+			}
 		}
 	}
 

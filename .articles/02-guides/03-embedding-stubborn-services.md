@@ -33,6 +33,27 @@ Open the service under **Settings, Services** and enable **Route through FLIP's 
 - The label changes every time FLIP restarts. Open tabs notice the reconnect and swap their frames automatically, but bookmarks to a proxied address will stop working.
 - Opening a proxied address directly in the browser as a page returns 403. It only works inside a frame.
 
+## Inject headers, cookies, and storage
+
+A proxied service can also have values pushed into it, from the **Inject** list that appears under the proxy toggle. Each row has a kind, a key, and a value:
+
+| Kind | What it does |
+|---|---|
+| request header | Sent to the service on every proxied request. |
+| response header | Added to every response the service sends back. |
+| cookie | Set on the proxied address every time the frame loads. Append attributes to the value, for example `abc; HttpOnly`. `Path=/` is added unless you give one. |
+| query param | Added to the frame's starting URL only, not to the app's later requests. |
+| localStorage | Written to the proxied address's localStorage every time the frame loads, overwriting whatever the app stored there. |
+
+Cookies and localStorage belong to an address, so a new proxy label normally starts empty. FLIP rewrites them on every frame load, so they survive a label change without you touching the app. For example, Home Assistant only remembers a hidden sidebar in localStorage. The **Home Assistant: hide sidebar** preset adds that row for you:
+
+```yaml
+inject:
+  - { kind: localStorage, key: dockedSidebar, value: '"always_hidden"' }
+```
+
+Values are stored in plain text in `config.yaml`, and anyone who can reach FLIP can read them. Header values are passed through Caddy's placeholders, so `{env.NAME}` expands to an environment variable on the FLIP container. The frame first loads a short page at `/__flip/seed` on the proxied address to write cookies and localStorage, so a service's own route at that path would be hidden.
+
 ## Limits
 
 - **Plain HTTP only.** If you serve FLIP itself over HTTPS, browsers will block a plain-HTTP frame as mixed content.

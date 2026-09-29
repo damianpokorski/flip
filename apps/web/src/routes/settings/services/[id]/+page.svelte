@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { TileHue } from "@flip/store";
+import type { Injection, TileHue } from "@flip/store";
 import { onMount } from "svelte";
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
@@ -27,6 +27,7 @@ let codes = $state("200");
 let every = $state("30s");
 let target = $state<"frame" | "external">("frame");
 let proxyHeaders = $state(false);
+let inject = $state<Injection[]>([]);
 let lazyLoad = $state(false);
 let sites = $state<SiteData[]>([]);
 
@@ -61,6 +62,8 @@ onMount(async () => {
 	every = service.every;
 	target = service.target;
 	proxyHeaders = service.proxyHeaders;
+	// Copied so edits stay local to the form until save instead of mutating appState.
+	inject = service.inject.map((row) => ({ ...row }));
 	lazyLoad = service.lazyLoad;
 	loaded = true;
 });
@@ -81,6 +84,9 @@ async function save() {
 		every,
 		target,
 		proxyHeaders,
+		// A row with no key yet is an unfinished edit, not something to persist (the API would
+		// reject it anyway).
+		inject: inject.filter((row) => row.key.trim() !== ""),
 		lazyLoad,
 	});
 	if (error) {
@@ -110,6 +116,7 @@ async function save() {
 			bind:every
 			bind:target
 			bind:proxyHeaders
+			bind:inject
 			bind:lazyLoad
 			proxyAvailable={!!appState.proxyDomain}
 			{sites}

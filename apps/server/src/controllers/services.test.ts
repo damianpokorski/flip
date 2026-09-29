@@ -7,6 +7,7 @@ const updateMock = mock();
 const deleteMock = mock();
 const reorderMock = mock();
 const probeMock = mock();
+const seedPageMock = mock();
 const allServiceMocks = [
 	getAllMock,
 	getByIdMock,
@@ -15,6 +16,7 @@ const allServiceMocks = [
 	deleteMock,
 	reorderMock,
 	probeMock,
+	seedPageMock,
 ];
 
 // Must run before the controller is imported: it builds `new ServicesService(...)` and
@@ -27,6 +29,7 @@ mock.module("../services/ServicesService", () => ({
 		update = updateMock;
 		delete = deleteMock;
 		reorder = reorderMock;
+		seedPage = seedPageMock;
 	},
 }));
 mock.module("../db/ServicesRepository", () => ({
@@ -78,6 +81,7 @@ const sampleService = {
 	target: "frame",
 	proxyHeaders: false,
 	proxyHost: null,
+	inject: [],
 	hidden: false,
 	lazyLoad: false,
 	health: { ms: null, lastCheckedAt: null, bucket: "down" },
@@ -134,6 +138,43 @@ describe("GET /services/:id", () => {
 		// Assert
 		expect(response.status).toBe(404);
 		expect(body).toEqual({ message: "Service not found" });
+	});
+});
+
+describe("GET /services/:id/seed", () => {
+	test("returns the service layer's HTML response untouched, passing next through", async () => {
+		// Arrange
+		seedPageMock.mockResolvedValue(
+			new Response("<!doctype html>", {
+				headers: { "Content-Type": "text/html; charset=utf-8" },
+			}),
+		);
+
+		// Act
+		const response = await servicesController.handle(
+			new Request("http://localhost/services/1/seed?next=%2Flovelace"),
+		);
+
+		// Assert
+		expect(response.status).toBe(200);
+		expect(response.headers.get("Content-Type")).toBe(
+			"text/html; charset=utf-8",
+		);
+		expect(await response.text()).toBe("<!doctype html>");
+		expect(seedPageMock).toHaveBeenCalledWith("1", "/lovelace");
+	});
+
+	test("maps NotFoundError to a 404", async () => {
+		// Arrange
+		seedPageMock.mockRejectedValue(new NotFoundError("Service not found"));
+
+		// Act
+		const response = await servicesController.handle(
+			new Request("http://localhost/services/missing/seed"),
+		);
+
+		// Assert
+		expect(response.status).toBe(404);
 	});
 });
 

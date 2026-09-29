@@ -85,3 +85,79 @@ describe("ServiceSchema", () => {
 		).toBe(false);
 	});
 });
+
+describe("ServiceSchema inject", () => {
+	test("defaults inject to an empty list", () => {
+		// Act
+		const result = ServiceSchema.parse(baseService);
+
+		// Assert
+		expect(result.inject).toEqual([]);
+	});
+
+	test("accepts one row of every kind", () => {
+		// Arrange
+		const inject = [
+			{ kind: "requestHeader", key: "X-Forwarded-User", value: "me" },
+			{ kind: "responseHeader", key: "X-Test", value: "1" },
+			{ kind: "cookie", key: "session", value: "abc; HttpOnly" },
+			{ kind: "query", key: "kiosk", value: "" },
+			{ kind: "localStorage", key: "dockedSidebar", value: '"always_hidden"' },
+		];
+
+		// Act
+		const result = ServiceSchema.safeParse({ ...baseService, inject });
+
+		// Assert
+		expect(result.success).toBe(true);
+	});
+
+	test("rejects a header name that isn't a valid HTTP token", () => {
+		// Arrange
+		const inject = [{ kind: "requestHeader", key: "X Bad", value: "1" }];
+
+		// Act
+		const result = ServiceSchema.safeParse({ ...baseService, inject });
+
+		// Assert
+		expect(result.success).toBe(false);
+	});
+
+	test("rejects overriding Host as a request header, case-insensitively", () => {
+		// Arrange
+		const inject = [{ kind: "requestHeader", key: "host", value: "evil" }];
+
+		// Act
+		const result = ServiceSchema.safeParse({ ...baseService, inject });
+
+		// Assert
+		expect(result.success).toBe(false);
+	});
+
+	test("rejects a line break in a value", () => {
+		// Arrange
+		const inject = [
+			{ kind: "responseHeader", key: "X-Test", value: "1\nreverse_proxy x" },
+		];
+
+		// Act
+		const result = ServiceSchema.safeParse({ ...baseService, inject });
+
+		// Assert
+		expect(result.success).toBe(false);
+	});
+
+	test("allows non-token keys for localStorage and query", () => {
+		// Arrange
+		const inject = [
+			{ kind: "localStorage", key: "some key:with/odd chars", value: "1" },
+			{ kind: "query", key: "a b", value: "1" },
+		];
+
+		// Act
+		const result = ServiceSchema.safeParse({ ...baseService, inject });
+
+		// Assert
+		expect(result.success).toBe(true);
+	});
+});

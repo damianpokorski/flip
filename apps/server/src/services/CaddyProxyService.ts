@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { env } from "@flip/env/server";
+import { SEED_INJECTION_KINDS } from "@flip/store/injection";
 import type { ConfigRepository } from "../db/ConfigRepository";
 import type { Service, ServicesRepository } from "../db/ServicesRepository";
 import { notifyDataChanged } from "../events";
@@ -49,6 +50,17 @@ function deriveLabel(secret: string, serviceId: string): string {
 		.digest("hex")
 		.slice(0, 32);
 }
+
+// Double-quoted Caddyfile token. Line breaks never reach here (InjectionSchema rejects them), so
+// escaping the quote is enough to keep a value from ending its own token early. `{...}` inside is
+// still a Caddy placeholder by design (e.g. {env.NAME}) — Caddy's own semantics, not ours.
+function caddyQuote(value: string): string {
+	return `"${value.replaceAll('"', '\\"')}"`;
+}
+
+// Path the proxied origin serves the cookie/localStorage seed page on. Deliberately obscure so it
+// can't plausibly shadow a real route of the upstream app.
+export const SEED_PATH = "/__flip/seed";
 
 export interface BuildCaddyfileOptions {
 	services: Service[];
@@ -158,24 +170,68 @@ export function buildCaddyfile({
 					// until Caddy dropped the connection with EOF).
 					// The upstream's own frame-ancestors/XFO are stripped so FLIP can embed it, then a
 					// scoped frame-ancestors is added back so *only* FLIP can (a second CSP header
-					// intersects with whatever else the upstream sent). Referrer-Policy is a site-level
+					// intersects with whatever else the upstream sent). The add has to be a deferred
+					// site-level `header`, not a header_down next to the strip: Caddy applies one
+					// header-op set as add, set, delete, *then* replace, so a header_down add is
+					// wiped by the header_down replace that runs after it (confirmed: the response
+					// came back with an empty Content-Security-Policy). `defer` applies it when the
+					// response is written, after reverse_proxy's header_down ops, and also covers
+					// the seed page and the 403. Referrer-Policy is a site-level
 					// `header` (reverse_proxy's header_down rejects `?`) and only a default (?), so an upstream's own choice wins; same-origin keeps the unguessable
 					// subdomain from leaking to third parties via Referer on link-outs.
 					// Sec-Fetch-Dest: document is a top-level navigation — the browser, not page JS,
 					// sets it, so a link opened straight to this subdomain is refused while the iframe
 					// (dest: iframe) and its subresources (script/image/empty/...) are unaffected.
 					// Best-effort: curl can forge it, and clients that omit it are let through.
-					return [
-						`http://${labelFor(service)}.${domain}:${proxyPort} {
-	@toplevel header Sec-Fetch-Dest document
-	respond @toplevel "Forbidden" 403
-	header ?Referrer-Policy same-origin
-	reverse_proxy ${upstream} {
+					// Injected headers come after FLIP's own header rules so a user row can add to
+					// them but never undo the Host rewrite (InjectionSchema rejects a Host row).
+					const injectedHeaders = service.inject.flatMap((injection) => {
+						if (injection.kind === "requestHeader") {
+							return [
+								`\t\theader_up ${injection.key} ${caddyQuote(injection.value)}`,
+							];
+						}
+						if (injection.kind === "responseHeader") {
+							return [
+								`\t\theader_down ${injection.key} ${caddyQuote(injection.value)}`,
+							];
+						}
+						return [];
+					});
+					const proxy = `	reverse_proxy ${upstream} {
 		header_up Host {http.reverse_proxy.upstream.hostport}
 		header_down -X-Frame-Options
 		header_down Content-Security-Policy "frame-ancestors[^;]*;?\\s*" ""
-		header_down +Content-Security-Policy "frame-ancestors ${frameAncestors}"
+${injectedHeaders.map((line) => `${line}\n`).join("")}	}`;
+					const needsSeed = service.inject.some((injection) =>
+						SEED_INJECTION_KINDS.includes(injection.kind),
+					);
+					// Without a seed route the block stays flat. With one, the body is wrapped in
+					// `route` to pin literal order: Caddy otherwise sorts `handle` ahead of
+					// `respond`, which would let a top-level navigation reach the seed page past the
+					// 403. The seed request is rewritten onto FLIP's own API (the same Bun target in
+					// dev and prod), so FLIP renders the page while the browser still sees it on
+					// this service's origin.
+					const body = needsSeed
+						? `	route {
+		respond @toplevel "Forbidden" 403
+		handle ${SEED_PATH} {
+			rewrite * /api/services/${encodeURIComponent(service.id)}/seed?{query}
+			reverse_proxy 127.0.0.1:${appPort}
+		}
+${proxy.replace(/^/gm, "\t")}
+	}`
+						: `	respond @toplevel "Forbidden" 403
+${proxy}`;
+					return [
+						`http://${labelFor(service)}.${domain}:${proxyPort} {
+	@toplevel header Sec-Fetch-Dest document
+	header ?Referrer-Policy same-origin
+	header {
+		+Content-Security-Policy "frame-ancestors ${frameAncestors}"
+		defer
 	}
+${body}
 }`,
 					];
 				})

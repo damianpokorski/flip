@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { INJECTION_KINDS } from "../injection";
 import { SITE_SLUG_PATTERN } from "../sites";
 
 export const TILE_HUES = [
@@ -23,6 +24,63 @@ export type ServiceTarget = z.infer<typeof ServiceTargetSchema>;
 
 export const ServiceSourceSchema = z.enum(["external", "local"]);
 export type ServiceSource = z.infer<typeof ServiceSourceSchema>;
+
+// Kind constants live in the dependency-free ../injection leaf so the browser can import them
+// without pulling in this module's node:fs-touching `../sites` import.
+export const InjectionKindSchema = z.enum(INJECTION_KINDS);
+
+// RFC 7230 `token` — the legal character set for both header names and cookie names.
+const HTTP_TOKEN_PATTERN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+const LINE_BREAK_PATTERN = /[\r\n]/;
+
+export const InjectionSchema = z
+	.object({
+		kind: InjectionKindSchema,
+		key: z.string().min(1),
+		value: z.string(),
+	})
+	.superRefine((injection, ctx) => {
+		// A raw line break would let a value smuggle an extra Caddyfile directive or HTTP
+		// header line, whatever the kind.
+		if (LINE_BREAK_PATTERN.test(injection.key)) {
+			ctx.addIssue({
+				code: "custom",
+				message: "must not contain line breaks",
+				path: ["key"],
+			});
+		}
+		if (LINE_BREAK_PATTERN.test(injection.value)) {
+			ctx.addIssue({
+				code: "custom",
+				message: "must not contain line breaks",
+				path: ["value"],
+			});
+		}
+		const isNamedToken =
+			injection.kind === "requestHeader" ||
+			injection.kind === "responseHeader" ||
+			injection.kind === "cookie";
+		if (isNamedToken && !HTTP_TOKEN_PATTERN.test(injection.key)) {
+			ctx.addIssue({
+				code: "custom",
+				message: "must be a valid header/cookie name",
+				path: ["key"],
+			});
+		}
+		// The proxy already rewrites Host to the upstream's own host:port to avoid proxy
+		// loops (see CaddyProxyService) — overriding it would reintroduce exactly that.
+		if (
+			injection.kind === "requestHeader" &&
+			injection.key.toLowerCase() === "host"
+		) {
+			ctx.addIssue({
+				code: "custom",
+				message: "Host is managed by the proxy and can't be overridden",
+				path: ["key"],
+			});
+		}
+	});
+export type Injection = z.infer<typeof InjectionSchema>;
 
 // Fields shared by every representation of a service. `ws` (the owning workspace) is part of
 // the base shape but omitted from the on-disk variant below — a service's workspace is implicit
@@ -77,6 +135,10 @@ export const ServiceBaseSchema = z.object({
 	// the response, letting a service that would otherwise refuse to be iframed still embed.
 	// Only takes effect when the server has PROXY_DOMAIN configured; a no-op otherwise.
 	proxyHeaders: z.boolean().default(false),
+	// Values pushed into the service through the proxy — headers, cookies, query params, or
+	// localStorage keys (see InjectionKindSchema). Only applies while the service is actually
+	// proxied (proxyHeaders on + PROXY_DOMAIN set); ignored otherwise. Stored as plaintext.
+	inject: z.array(InjectionSchema).default([]),
 	hidden: z.boolean().default(false),
 	// When true, this service's iframe is never preloaded in the background — it gets no
 	// `src` until the user actually opens it, bypassing the maxParallelFrameLoads stagger.

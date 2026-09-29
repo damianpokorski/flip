@@ -23,6 +23,7 @@ function service(overrides: Partial<Record<string, unknown>> = {}) {
 		every: "30s",
 		target: "frame",
 		proxyHeaders: false,
+		inject: [],
 		hidden: false,
 		lazyLoad: false,
 		...overrides,
@@ -455,5 +456,119 @@ describe("ServicesService proxied-url validation", () => {
 		// Assert
 		expect(all.find((x) => x.id === "p")?.proxyHost).toBe("label-p");
 		expect(all.find((x) => x.id === "q")?.proxyHost).toBeNull();
+	});
+});
+
+describe("ServicesService injections", () => {
+	test("create defaults inject to an empty list", async () => {
+		// Arrange
+		const repo = fakeServicesRepo();
+		const svc = new ServicesService(
+			repo as never,
+			fakeWorkspacesRepo() as never,
+		);
+
+		// Act
+		const created = await svc.create(baseBody);
+
+		// Assert
+		expect(created.inject).toEqual([]);
+	});
+
+	test("rejects an invalid row with a 422 naming the offending row", async () => {
+		// Arrange
+		const repo = fakeServicesRepo();
+		const svc = new ServicesService(
+			repo as never,
+			fakeWorkspacesRepo() as never,
+		);
+
+		// Act
+		const attempt = svc.create({
+			...baseBody,
+			inject: [
+				{ kind: "localStorage", key: "ok", value: "1" },
+				{ kind: "requestHeader", key: "Host", value: "evil" },
+			],
+		});
+
+		// Assert
+		await expect(attempt).rejects.toBeInstanceOf(UnprocessableEntityError);
+		await expect(attempt).rejects.toThrow(/^inject\[1\]\.key /);
+		expect(repo.create).not.toHaveBeenCalled();
+	});
+
+	test("update rejects a row with a line break in its value", async () => {
+		// Arrange
+		const repo = fakeServicesRepo([service({ id: "1" })]);
+		const svc = new ServicesService(
+			repo as never,
+			fakeWorkspacesRepo() as never,
+		);
+
+		// Act
+		const attempt = svc.update("1", {
+			...baseBody,
+			inject: [{ kind: "responseHeader", key: "X-A", value: "1\nx" }],
+		});
+
+		// Assert
+		await expect(attempt).rejects.toBeInstanceOf(UnprocessableEntityError);
+		expect(repo.update).not.toHaveBeenCalled();
+	});
+
+	test("clears inject for source: local, which is never proxied", async () => {
+		// Arrange
+		const repo = fakeServicesRepo();
+		const svc = new ServicesService(
+			repo as never,
+			fakeWorkspacesRepo() as never,
+		);
+
+		// Act
+		const created = await svc.create({
+			...baseBody,
+			source: "local",
+			localSlug: "demo",
+			inject: [{ kind: "localStorage", key: "k", value: "v" }],
+		});
+
+		// Assert
+		expect(created.inject).toEqual([]);
+	});
+
+	test("seedPage renders the stored service's injections", async () => {
+		// Arrange
+		const repo = fakeServicesRepo([
+			service({
+				id: "1",
+				inject: [{ kind: "cookie", key: "a", value: "1" }],
+			}),
+		]);
+		const svc = new ServicesService(
+			repo as never,
+			fakeWorkspacesRepo() as never,
+		);
+
+		// Act
+		const response = await svc.seedPage("1", "/x");
+
+		// Assert
+		expect(response.headers.getSetCookie()).toEqual(["a=1; Path=/"]);
+		expect(await response.text()).toContain('"next":"/x"');
+	});
+
+	test("seedPage throws NotFoundError for an unknown id", async () => {
+		// Arrange
+		const svc = new ServicesService(
+			fakeServicesRepo() as never,
+			fakeWorkspacesRepo() as never,
+		);
+
+		// Act
+		const attempt = svc.seedPage("missing", "/");
+
+		// Assert
+		await expect(attempt).rejects.toBeInstanceOf(NotFoundError);
 	});
 });
