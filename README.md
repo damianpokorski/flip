@@ -47,6 +47,19 @@ If container logs show Caddy failing to bind its admin API (`listen tcp 127.0.0.
 
 Want to run FLIP from source instead — for development, or to build the image yourself? See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
+### Keeping it running
+
+FLIP exits on its own if its embedded proxy dies, so `--restart unless-stopped` (or `restart: unless-stopped` in compose) brings it back. Docker never restarts a container that is merely *unhealthy*, though. The image's `HEALTHCHECK` also fails when the server itself stalls, and to act on that you need something like [autoheal](https://github.com/willfarrell/docker-autoheal) watching the container. Capping log size is worth doing too:
+
+```bash
+docker run -d --name flip -p 80:80 -v flip-data:/data \
+  --restart unless-stopped --label autoheal=true \
+  --log-opt max-size=10m --log-opt max-file=3 \
+  ghcr.io/damianpokorski/flip:latest
+```
+
+If it does misbehave, `GET /api/health` returns a diagnostics snapshot: uptime, memory, event-loop lag, whether the proxy is alive, when health checks last ran, open connections and file descriptors. It responds with a 503 and a `problems` list when something is wrong, and `docker logs` gets the same numbers as a `[stats]` line every 5 minutes. Keep the `/data` volume on local disk rather than a network share (NFS/SMB) if you can, since a stalled share can block the whole process and live reload of hand-edited config relies on file-change notifications those mounts don't deliver.
+
 ### Editing config by hand
 
 Open `config.yaml` (inside the `flip-data` volume, or `./data/` if bind-mounted) in an editor while FLIP is running — changes are picked up live and pushed to any open browser tab. Each field is documented with a comment in the generated file, and each service is nested under the `workspaces` entry it belongs to. CRUD actions taken through the Settings UI write back to the same file, preserving comments on entries you didn't touch. `Settings → Config` shows a live, read-only, syntax-colored view of the actual file on disk.

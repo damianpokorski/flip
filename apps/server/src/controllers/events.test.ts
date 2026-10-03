@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { dataEvents } from "../events";
-import { eventsController } from "./events";
+import { telemetrySnapshot } from "../telemetry";
+import { eventsController, waitForEventOrAbort } from "./events";
 
 // The `sse()`-wrapped route resolves its Response only once the generator produces its
 // first chunk (or returns without yielding) — so the triggering event must be emitted
@@ -86,5 +87,43 @@ describe("GET /events", () => {
 
 		// Assert
 		expect(dataEvents.listenerCount("change")).toBe(changeListenersBefore);
+	});
+
+	test("removes its dataEvents listeners when the heartbeat elapses with no event", async () => {
+		// Arrange
+		const changeListenersBefore = dataEvents.listenerCount("change");
+		const healthListenersBefore = dataEvents.listenerCount("health");
+		const controller = new AbortController();
+
+		// Act
+		const result = await waitForEventOrAbort(controller.signal, 10);
+
+		// Assert
+		expect(result).toBe(false);
+		expect(dataEvents.listenerCount("change")).toBe(changeListenersBefore);
+		expect(dataEvents.listenerCount("health")).toBe(healthListenersBefore);
+	});
+
+	test("counts a connected client for as long as its stream is open", async () => {
+		// Arrange
+		const clientsBefore = telemetrySnapshot().sseClients;
+		const controller = new AbortController();
+		const request = new Request("http://localhost/events", {
+			signal: controller.signal,
+		});
+		const responsePromise = eventsController.handle(request);
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		const clientsWhileOpen = telemetrySnapshot().sseClients;
+
+		// Act
+		controller.abort();
+		const response = await responsePromise;
+		// biome-ignore lint/style/noNonNullAssertion: the sse route always returns a body
+		const reader = response.body!.getReader();
+		await reader.read();
+
+		// Assert
+		expect(clientsWhileOpen).toBe(clientsBefore + 1);
+		expect(telemetrySnapshot().sseClients).toBe(clientsBefore);
 	});
 });

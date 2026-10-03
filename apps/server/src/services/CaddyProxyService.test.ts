@@ -239,6 +239,19 @@ describe("buildCaddyfile", () => {
 		expect(caddyfile).toContain("servers {\n\t\tprotocols h1\n\t}");
 	});
 
+	test("global options bound the reload grace period so open SSE streams can't hold an old server forever", () => {
+		const caddyfile = buildCaddyfile({
+			services: [],
+			mode: "prod",
+			appPort: 3000,
+			proxyPort: 8080,
+			domain: undefined,
+			adminPort: 2019,
+		});
+
+		expect(caddyfile).toContain("grace_period 10s");
+	});
+
 	test("produces no per-service site blocks when no service opts in", () => {
 		const services = [service({ proxyHeaders: false })];
 
@@ -907,5 +920,66 @@ describe("CaddyProxyService", () => {
 		expect(bodies.at(-1)).toContain(`${newLabel}.flip.lan:8080`);
 		expect(bodies.at(-1)).not.toContain(`${oldLabel}.flip.lan:8080`);
 		expect(changeSpy).toHaveBeenCalled();
+	});
+
+	test("reports an unexpected caddy exit to the registered listener and marks it dead", async () => {
+		// Arrange
+		let exit: (code: number) => void = () => {};
+		Bun.spawn = mock(() => ({
+			kill: mock(),
+			exited: new Promise<number>((resolve) => {
+				exit = resolve;
+			}),
+		})) as unknown as typeof Bun.spawn;
+		global.fetch = (async () =>
+			new Response("", { status: 200 })) as unknown as typeof fetch;
+		const proxy = new CaddyProxyService(
+			{ findAll: async () => [] } as never,
+			fakeConfigRepo() as never,
+		);
+		const onExit = mock();
+		proxy.onUnexpectedExit(onExit);
+		const consoleError = spyOn(console, "error").mockImplementation(() => {});
+		await proxy.start();
+		const aliveBefore = proxy.isAlive;
+
+		// Act
+		exit(1);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		// Assert
+		expect(aliveBefore).toBe(true);
+		expect(proxy.isAlive).toBe(false);
+		expect(onExit).toHaveBeenCalledWith(1);
+		consoleError.mockRestore();
+	});
+
+	test("does not report caddy's exit as unexpected when stop() caused it", async () => {
+		// Arrange
+		let exit: (code: number) => void = () => {};
+		const exited = new Promise<number>((resolve) => {
+			exit = resolve;
+		});
+		Bun.spawn = mock(() => ({
+			kill: mock(() => exit(0)),
+			exited,
+		})) as unknown as typeof Bun.spawn;
+		global.fetch = (async () =>
+			new Response("", { status: 200 })) as unknown as typeof fetch;
+		const proxy = new CaddyProxyService(
+			{ findAll: async () => [] } as never,
+			fakeConfigRepo() as never,
+		);
+		const onExit = mock();
+		proxy.onUnexpectedExit(onExit);
+		await proxy.start();
+
+		// Act
+		await proxy.stop();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		// Assert
+		expect(onExit).not.toHaveBeenCalled();
+		expect(proxy.isAlive).toBe(false);
 	});
 });

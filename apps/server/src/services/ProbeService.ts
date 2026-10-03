@@ -47,6 +47,10 @@ export class ProbeService {
 		if (contentType.includes("text/html")) {
 			const text = await response.text();
 			title = TITLE_PATTERN.exec(text)?.[1]?.trim() || null;
+		} else {
+			// Nothing to read from a non-HTML body — release the connection instead of leaving it
+			// held until the Response is garbage-collected.
+			await response.body?.cancel().catch(() => undefined);
 		}
 
 		return {

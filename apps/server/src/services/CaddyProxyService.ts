@@ -28,6 +28,8 @@ export function resolveProxyPort(mode: "dev" | "prod"): number {
 // Cap on distinct FLIP origins learned from request Host headers (see learnOrigin) — a
 // deliberately small bound so a stream of forged Host values can't grow the Caddyfile unboundedly.
 const MAX_LEARNED_HOSTS = 8;
+// See the global options block in buildCaddyfile.
+const RELOAD_GRACE_PERIOD = "10s";
 const HOST_PATTERN =
 	/^(?:[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?|\[[0-9a-f:]+\])(?::\d{1,5})?$/;
 
@@ -242,9 +244,14 @@ ${body}
 	// h3 (QUIC) mandates TLS, so a plain "auto_https off" server can still stand up a
 	// TLS-requiring listener via Caddy's local self-signed identity. Pin to h1 explicitly so
 	// this proxy never offers a protocol that needs TLS, matching the "plain HTTP only" design.
+	// grace_period bounds how long a config reload waits on open connections before closing
+	// them — Caddy's default is eternal, and every browser tab holds a never-ending SSE stream
+	// (/api/events), so without it each reload leaves the old server instance draining forever.
+	// The SPA's EventSource reconnects on its own once the old connection is cut.
 	return `{
 	admin localhost:${adminPort}
 	auto_https off
+	grace_period ${RELOAD_GRACE_PERIOD}
 	log stdout
 	servers {
 		protocols h1
@@ -264,6 +271,9 @@ ${[rootBlock, ...serviceBlocks].join("\n\n")}
 // repository for business logic.
 export class CaddyProxyService {
 	private process: ReturnType<typeof Bun.spawn> | undefined;
+	private alive = false;
+	private stopping = false;
+	private unexpectedExitListener: ((code: number) => void) | undefined;
 	// Cached in-memory once loaded/generated so labelFor() and every reload agree on the same
 	// value without re-reading config.yaml on every call — see ensureSecret().
 	private secret: string | undefined;
@@ -339,6 +349,18 @@ export class CaddyProxyService {
 		await this.reload(await this.repo.findAll());
 	}
 
+	// Whether the spawned caddy process is still running — surfaced via /api/health.
+	get isAlive(): boolean {
+		return this.alive;
+	}
+
+	// Called if caddy exits without stop() having been called. The service only reports it —
+	// what to do about it (index.ts exits the whole process so Docker's restart policy can
+	// recover, since a FLIP whose sole entrypoint is gone is unreachable) is the caller's call.
+	onUnexpectedExit(listener: (code: number) => void): void {
+		this.unexpectedExitListener = listener;
+	}
+
 	private mode(): "dev" | "prod" {
 		return env.NODE_ENV === "production" ? "prod" : "dev";
 	}
@@ -371,13 +393,28 @@ export class CaddyProxyService {
 			return;
 		}
 
+		const spawned = this.process;
+		this.alive = true;
+		this.stopping = false;
+		spawned.exited.then((code) => {
+			if (this.process !== spawned) return;
+			this.alive = false;
+			if (this.stopping) return;
+			console.error(
+				`[CaddyProxyService] caddy exited unexpectedly (code ${code})`,
+			);
+			this.unexpectedExitListener?.(code);
+		});
+
 		await this.reloadWithRetry(await this.repo.findAll());
 	}
 
 	async stop(): Promise<void> {
 		if (!this.process) return;
+		this.stopping = true;
 		this.process.kill();
 		await this.process.exited;
+		this.alive = false;
 		this.process = undefined;
 	}
 

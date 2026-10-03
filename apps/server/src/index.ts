@@ -6,6 +6,8 @@ import Elysia from "elysia";
 import { caddyProxyService, healthCheckService } from "./controllers/services";
 import { notifyDataChanged } from "./events";
 import { router } from "./router";
+import { TICK_MS } from "./services/HealthCheckService";
+import { startTelemetry, stopTelemetry } from "./telemetry";
 
 // Extra safety net in front of apps/bootstrap (which already runs this in production/Docker
 // before the server starts) — ensures DATA_DIR and its default YAML files exist even when
@@ -25,10 +27,31 @@ configStore.onChange(async () => {
 // checks are live fetches against each service's real URL, which would make screenshot/e2e
 // runs depend on real network timing and third-party reachability.
 if (!process.env.DISABLE_HEALTH_CHECKS) healthCheckService.start();
+
+// Caddy is the sole entrypoint, so if it dies the app is unreachable while this process keeps
+// running — and Docker's restart policy only reacts to an *exit*, never to an unhealthy
+// HEALTHCHECK. Exit so the container gets restarted instead of hanging until someone notices.
+// Production only: `bun run --hot` re-runs this module in the same process, and the re-spawned
+// caddy exits immediately on the admin port the first one still holds.
+caddyProxyService.onUnexpectedExit(() => {
+	if (env.NODE_ENV !== "production") return;
+	console.error(
+		"[server] caddy is gone — exiting so the container can restart",
+	);
+	process.exit(1);
+});
 await caddyProxyService.start();
+
+startTelemetry({
+	health: healthCheckService,
+	caddy: caddyProxyService,
+	// A few missed ticks' worth of slack — a single slow tick isn't a stall.
+	healthTickStaleMs: TICK_MS * 6,
+});
 
 const shutdown = async (signal: NodeJS.Signals) => {
 	console.log(`[server] ${signal} received, shutting down`);
+	stopTelemetry();
 	healthCheckService.stop();
 	await caddyProxyService.stop();
 	process.exit(0);

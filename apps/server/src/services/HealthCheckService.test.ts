@@ -260,4 +260,58 @@ describe("HealthCheckService", () => {
 		// Assert
 		expect(callCount).toBe(1);
 	});
+
+	test("skips a service whose previous check is still in flight instead of fetching it again", async () => {
+		// Arrange — a target that never answers, so the first tick's fetch stays pending
+		let callCount = 0;
+		global.fetch = (() => {
+			callCount += 1;
+			return new Promise(() => {});
+		}) as unknown as typeof fetch;
+		const repo = { findAll: async () => [service()] };
+		const health = new HealthCheckService(repo as never);
+		const tick = () =>
+			(health as unknown as { tick: () => Promise<void> }).tick();
+
+		// Act — the pending first tick is deliberately never awaited
+		void tick();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await tick();
+
+		// Assert
+		expect(callCount).toBe(1);
+		expect(health.inFlightCount).toBe(1);
+	});
+
+	test("cancels the unread response body once the status has been read", async () => {
+		// Arrange
+		const response = new Response("<html>a large body</html>", { status: 200 });
+		// biome-ignore lint/style/noNonNullAssertion: a string body always yields a stream
+		const cancelSpy = spyOn(response.body!, "cancel");
+		global.fetch = (async () => response) as unknown as typeof fetch;
+		const repo = { findAll: async () => [service()] };
+		const health = new HealthCheckService(repo as never);
+
+		// Act
+		await (health as unknown as { tick: () => Promise<void> }).tick();
+
+		// Assert
+		expect(cancelSpy).toHaveBeenCalled();
+		expect(health.inFlightCount).toBe(0);
+	});
+
+	test("records when the last tick completed", async () => {
+		// Arrange
+		global.fetch = (async () =>
+			new Response("", { status: 200 })) as unknown as typeof fetch;
+		const repo = { findAll: async () => [service()] };
+		const health = new HealthCheckService(repo as never);
+		const before = Date.now();
+
+		// Act
+		await (health as unknown as { tick: () => Promise<void> }).tick();
+
+		// Assert
+		expect(health.lastTickAt).toBeGreaterThanOrEqual(before);
+	});
 });

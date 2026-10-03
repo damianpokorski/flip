@@ -30,13 +30,31 @@ const UNKNOWN_HEALTH: HealthStatus = {
 // only — deliberately never persisted to YAML, so config files stay stable/human-diffable
 // and don't race with the file watcher. Status resets to "unknown"-shaped (down/null) on
 // every restart, which is an accepted tradeoff for a personal-scale tool.
-const TICK_MS = 5_000;
+export const TICK_MS = 5_000;
 
 export class HealthCheckService {
 	private readonly statuses = new Map<string, HealthRecord>();
 	private timer: ReturnType<typeof setInterval> | undefined;
+	// Services with a check still awaiting a response. A tick only records lastCheckedAtMs once
+	// its fetch settles, so without this a target that hangs up to the timeout would get a fresh
+	// duplicate fetch on every TICK_MS tick in the meantime.
+	private readonly inFlight = new Set<string>();
+	private lastTickAtMs: number | null = null;
 
 	constructor(private readonly repo: ServicesRepository) {}
+
+	// Telemetry for /api/health and the periodic stats line (see telemetry.ts).
+	get running(): boolean {
+		return this.timer !== undefined;
+	}
+
+	get lastTickAt(): number | null {
+		return this.lastTickAtMs;
+	}
+
+	get inFlightCount(): number {
+		return this.inFlight.size;
+	}
 
 	getStatus(id: string): HealthStatus {
 		const record = this.statuses.get(id);
@@ -77,6 +95,7 @@ export class HealthCheckService {
 				const intervalMs = parseEvery(service.every);
 				const existing = this.statuses.get(service.id);
 				if (existing && now - existing.lastCheckedAtMs < intervalMs) return;
+				if (this.inFlight.has(service.id)) return;
 
 				// A locally-hosted site's `url`/`healthCheckUrl` is a same-origin relative path
 				// (e.g. "/api/sites/demo/") rather than an absolute URL — resolve it against this
@@ -88,6 +107,7 @@ export class HealthCheckService {
 				const okCodes = parseCodes(service.codes);
 				const startedAt = performance.now();
 				let ms: number | null;
+				this.inFlight.add(service.id);
 				try {
 					const response = await fetch(target, {
 						signal: AbortSignal.timeout(config.healthCheckTimeoutMs),
@@ -97,8 +117,13 @@ export class HealthCheckService {
 					ms = okCodes.includes(response.status)
 						? Math.round(performance.now() - startedAt)
 						: null;
+					// Only the status matters — cancel the unread body so the connection is
+					// released now rather than whenever the Response gets garbage-collected.
+					await response.body?.cancel().catch(() => undefined);
 				} catch {
 					ms = null;
+				} finally {
+					this.inFlight.delete(service.id);
 				}
 				const record: HealthRecord = {
 					ms,
@@ -116,5 +141,6 @@ export class HealthCheckService {
 		);
 
 		if (Object.keys(changed).length > 0) notifyHealthChanged(changed);
+		this.lastTickAtMs = Date.now();
 	}
 }
