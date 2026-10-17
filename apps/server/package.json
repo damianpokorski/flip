@@ -20,13 +20,13 @@
 		"@sinclair/typebox": "^0.34.52",
 		"dotenv": "catalog:",
 		"elysia": "^1.4.29",
-		"uuid": "^14.0.2",
+		"uuid": "^14.0.3",
 		"zod": "catalog:"
 	},
 	"devDependencies": {
 		"@flip/config": "workspace:*",
 		"@types/bun": "catalog:",
-		"tsdown": "^0.22.14",
+		"tsdown": "^0.23.1",
 		"typescript": "catalog:"
 	}
 }
