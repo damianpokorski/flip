@@ -12,21 +12,21 @@
 		"test:coverage": "bun test ./src --coverage --isolate"
 	},
 	"dependencies": {
-		"@elysia/openapi": "^1.4.16",
-		"@elysiajs/cors": "^1.4.2",
-		"@elysiajs/static": "^1.4.10",
+		"@elysia/openapi": "^1.4.17",
+		"@elysiajs/cors": "^1.4.3",
+		"@elysiajs/static": "^1.4.12",
 		"@flip/env": "workspace:*",
 		"@flip/store": "workspace:*",
 		"@sinclair/typebox": "^0.34.52",
 		"dotenv": "catalog:",
-		"elysia": "^1.4.29",
-		"uuid": "^14.0.2",
+		"elysia": "^1.4.31",
+		"uuid": "^14.0.3",
 		"zod": "catalog:"
 	},
 	"devDependencies": {
 		"@flip/config": "workspace:*",
 		"@types/bun": "catalog:",
-		"tsdown": "^0.22.14",
+		"tsdown": "^0.23.7",
 		"typescript": "catalog:"
 	}
 }
